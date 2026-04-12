@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --primary: #1B2A4A;
+    --accent: #C9A84C;
+    --bg-soft: #F8F9FC;
+  }
+
+  body {
+    @apply antialiased text-primary selection:bg-accent/30;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply px-6 py-2.5 bg-primary text-white font-medium rounded-lg 
+           hover:bg-primary-light transition-all duration-200 
+           focus:ring-2 focus:ring-accent focus:ring-offset-2 disabled:opacity-50;
+  }
+
+  .btn-secondary {
+    @apply px-6 py-2.5 border-2 border-accent text-primary font-medium rounded-lg 
+           hover:bg-accent/5 transition-all duration-200 
+           focus:ring-2 focus:ring-accent focus:ring-offset-2 disabled:opacity-50;
+  }
+
+  .card {
+    @apply bg-white rounded-xl shadow-md border border-border overflow-hidden;
+  }
+
+  .input {
+    @apply w-full px-4 py-2 border border-border rounded-lg focus:outline-none 
+           focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all duration-200;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider;
+  }
+
+  .badge-pending   { @apply bg-accent text-white; }
+  .badge-accepted  { @apply bg-success text-white; }
+  .badge-rejected  { @apply bg-error text-white; }
+  .badge-cancelled { @apply bg-muted text-white; }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-surface-dark;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-border rounded-full hover:bg-muted transition-colors;
+}
