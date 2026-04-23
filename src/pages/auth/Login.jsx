@@ -16,14 +16,34 @@ const Login = () => {
     setLoading(true)
     setError('')
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { data: authData, error } = await supabase.auth.signInWithPassword({ email, password })
 
     if (error) {
       setError(error.message)
       setLoading(false)
     } else {
-      const from = location.state?.from?.pathname || '/'
-      navigate(from, { replace: true })
+      let dashboardPath = '/'
+      
+      // Fetch profile to get role for routing
+      if (authData?.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', authData.user.id)
+          .single()
+          
+        if (profile) {
+          const roleMap = {
+            candidate: '/dashboard/candidate',
+            employer: '/dashboard/employer',
+            admin: '/dashboard/admin'
+          }
+          dashboardPath = roleMap[profile.role] || '/'
+        }
+      }
+
+      const from = location.state?.from?.pathname
+      navigate(from && from !== '/' ? from : dashboardPath, { replace: true })
     }
   }
 
