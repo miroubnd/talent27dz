@@ -34,7 +34,7 @@ const Navbar = () => {
     ]
   }
 
-  const links = profile ? navLinks[profile.role] : []
+  const links = profile?.role ? navLinks[profile.role] || [] : []
 
   return (
     <nav className="bg-white border-b border-border sticky top-0 z-50">
@@ -166,6 +166,17 @@ const Navbar = () => {
               <div className="flex flex-col space-y-2 pt-4 border-t border-border">
                 <Button variant="secondary" onClick={() => navigate('/login')}>Login</Button>
                 <Button onClick={() => navigate('/register')}>Register</Button>
+              </div>
+            )}
+            {user && (
+              <div className="pt-4 border-t border-border">
+                <button
+                  onClick={handleSignOut}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-error/10 text-error font-semibold hover:bg-error/20 transition-colors"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Logout
+                </button>
               </div>
             )}
         </div>
