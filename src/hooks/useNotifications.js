@@ -40,18 +40,18 @@ export const useNotifications = () => {
 
     if (data) {
       setNotifications(data)
-      setUnreadCount(data.filter(n => !n.read).length)
+      setUnreadCount(data.filter(n => !n.is_read).length)
     }
   }
 
   const markAsRead = async (id) => {
     const { error } = await supabase
       .from('notifications')
-      .update({ read: true })
+      .update({ is_read: true })
       .eq('id', id)
 
     if (!error) {
-      setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n))
       setUnreadCount(prev => Math.max(0, prev - 1))
     }
   }

@@ -59,11 +59,17 @@ const Register = () => {
       let cvUrl = ''
       let logoUrl = ''
 
-      if (role === 'candidate') {
-        if (files.avatar) avatarUrl = await uploadFile('avatars', files.avatar, userId)
-        if (files.cv) cvUrl = await uploadFile('cvs', files.cv, userId)
-      } else {
-        if (files.logo) logoUrl = await uploadFile('logos', files.logo, userId)
+      try {
+        if (role === 'candidate') {
+          if (files.avatar) avatarUrl = await uploadFile('avatars', files.avatar, userId)
+          if (files.cv) cvUrl = await uploadFile('cvs', files.cv, userId)
+        } else {
+          if (files.logo) logoUrl = await uploadFile('logos', files.logo, userId)
+        }
+      } catch (uploadErr) {
+        console.error('File upload failed during registration:', uploadErr)
+        // We continue anyway so the profile is created, preventing a "ghost user"
+        // Users can re-upload files from their dashboard.
       }
 
       // 3. Create Profile

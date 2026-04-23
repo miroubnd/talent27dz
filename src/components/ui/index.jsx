@@ -5,7 +5,7 @@ export function cn(...inputs) {
   return twMerge(clsx(inputs))
 }
 
-export const Button = ({ className, variant = 'primary', children, ...props }) => {
+export const Button = ({ className, variant = 'primary', children, loading, ...props }) => {
   const baseStyles = "inline-flex items-center justify-center font-medium transition-all duration-200 focus:ring-2 focus:ring-accent focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none"
   
   const variants = {

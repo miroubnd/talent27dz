@@ -2,23 +2,25 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Navbar } from '../../components/layout'
 import { Card, Badge, Button } from '../../components/ui'
-import { Users, Briefcase, Check, X, Shield, Search } from 'lucide-react'
+import { Users, Briefcase, Check, X, Shield, Search, Settings } from 'lucide-react'
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('pending_jobs')
   const [pendingJobs, setPendingJobs] = useState([])
   const [allUsers, setAllUsers] = useState([])
+  const [settings, setSettings] = useState({ employer_registration_open: true })
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     fetchPendingJobs()
     fetchUsers()
+    fetchSettings()
   }, [])
 
   const fetchPendingJobs = async () => {
     const { data } = await supabase
       .from('jobs')
-      .select('*, profiles(company_name)')
+      .select('*, profiles(*)')
       .eq('status', 'pending')
       .order('created_at', { ascending: false })
     if (data) setPendingJobs(data)
@@ -33,21 +35,58 @@ const AdminDashboard = () => {
     setLoading(false)
   }
 
-  const approveJob = async (jobId, employerId, status = 'approved') => {
+  const fetchSettings = async () => {
+    const { data } = await supabase
+      .from('platform_settings')
+      .select('*')
+      .eq('id', 1)
+      .single()
+    if (data) setSettings(data)
+  }
+
+  const toggleEmployerRegistration = async () => {
+    const newValue = !settings.employer_registration_open
+    const { error } = await supabase
+      .from('platform_settings')
+      .update({ employer_registration_open: newValue })
+      .eq('id', 1)
+    
+    if (!error) {
+      setSettings({ ...settings, employer_registration_open: newValue })
+    }
+  }
+
+  const approveJob = async (jobId, employerProfile, status = 'approved') => {
     const { error } = await supabase
       .from('jobs')
       .update({ status })
       .eq('id', jobId)
 
     if (!error) {
+      const jobTitle = pendingJobs.find(j => j.id === jobId)?.title
       // Notify employer
       await supabase
         .from('notifications')
         .insert([{
-          user_id: employerId,
-          message: `Your job post for "${pendingJobs.find(j => j.id === jobId).title}" has been ${status}.`,
-          type: 'job_moderation'
+          user_id: employerProfile.id,
+          message: `Your job post for "${jobTitle}" has been ${status}.`,
         }])
+      
+      if (employerProfile.contact_email || employerProfile.email) {
+        const destEmail = employerProfile.contact_email || employerProfile.email
+        const subject = status === 'approved' ? "Your job post has been approved — TalentDZ" : "Your job post was not approved — TalentDZ"
+        const content = status === 'approved' 
+          ? `Your job post ${jobTitle} has been approved and is now live on TalentDZ.`
+          : `Your job post ${jobTitle} has been reviewed and was not approved at this time.`
+
+        await supabase.functions.invoke('send-email', {
+          body: {
+            to: destEmail,
+            subject,
+            content
+          }
+        })
+      }
 
       setPendingJobs(prev => prev.filter(j => j.id !== jobId))
     }
@@ -58,30 +97,36 @@ const AdminDashboard = () => {
       <Navbar />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <header className="mb-10 flex items-center justify-between">
+        <header className="mb-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
            <div>
               <h1 className="text-3xl font-bold text-primary flex items-center">
                 <Shield className="mr-3 text-accent" /> Admin Panel
               </h1>
               <p className="text-secondary mt-1">Platform-wide moderation and management.</p>
            </div>
-           <div className="flex bg-white p-1 rounded-xl border border-border shadow-sm">
+           <div className="flex flex-wrap bg-white p-1 rounded-xl border border-border shadow-sm">
               <button 
                 onClick={() => setActiveTab('pending_jobs')}
-                className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'pending_jobs' ? 'bg-primary text-white shadow-md' : 'text-secondary hover:text-primary'}`}
+                className={`px-4 md:px-6 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'pending_jobs' ? 'bg-primary text-white shadow-md' : 'text-secondary hover:text-primary'}`}
               >
                 Jobs ({pendingJobs.length})
               </button>
               <button 
                 onClick={() => setActiveTab('users')}
-                className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'users' ? 'bg-primary text-white shadow-md' : 'text-secondary hover:text-primary'}`}
+                className={`px-4 md:px-6 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'users' ? 'bg-primary text-white shadow-md' : 'text-secondary hover:text-primary'}`}
               >
                 Users ({allUsers.length})
+              </button>
+              <button 
+                onClick={() => setActiveTab('settings')}
+                className={`px-4 md:px-6 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'settings' ? 'bg-primary text-white shadow-md' : 'text-secondary hover:text-primary'}`}
+              >
+                Settings
               </button>
            </div>
         </header>
 
-        {activeTab === 'pending_jobs' ? (
+        {activeTab === 'pending_jobs' && (
           <div className="space-y-6">
              {loading ? (
                 <div className="h-64 bg-white/50 animate-pulse rounded-xl border border-border"></div>
@@ -102,14 +147,14 @@ const AdminDashboard = () => {
                             variant="primary" 
                             size="sm" 
                             className="bg-success hover:bg-green-700"
-                            onClick={() => approveJob(job.id, job.employer_id, 'approved')}
+                            onClick={() => approveJob(job.id, job.profiles, 'approved')}
                            >
                               <Check size={16} className="mr-2" /> Approve
                            </Button>
                            <Button 
                             variant="danger" 
                             size="sm"
-                            onClick={() => approveJob(job.id, job.employer_id, 'rejected')}
+                            onClick={() => approveJob(job.id, job.profiles, 'rejected')}
                            >
                               <X size={16} className="mr-2" /> Reject
                            </Button>
@@ -125,7 +170,9 @@ const AdminDashboard = () => {
                 </div>
              )}
           </div>
-        ) : (
+        )}
+        
+        {activeTab === 'users' && (
           <Card>
              <div className="overflow-x-auto">
                 <table className="w-full text-left">
@@ -156,6 +203,27 @@ const AdminDashboard = () => {
                       ))}
                    </tbody>
                 </table>
+             </div>
+          </Card>
+        )}
+
+        {activeTab === 'settings' && (
+          <Card className="p-8 max-w-2xl">
+             <h2 className="text-2xl font-bold text-primary flex items-center mb-6">
+               <Settings className="mr-3 text-accent" /> Platform Settings
+             </h2>
+             
+             <div className="flex items-center justify-between p-4 border border-border rounded-xl">
+               <div>
+                 <h3 className="font-bold text-primary text-lg">Allow Employer Registrations</h3>
+                 <p className="text-sm text-secondary">When off, new employers cannot join the platform.</p>
+               </div>
+               <button 
+                 onClick={toggleEmployerRegistration}
+                 className={`w-14 h-8 rounded-full transition-colors flex items-center relative ${settings.employer_registration_open ? 'bg-success' : 'bg-muted'}`}
+               >
+                  <div className={`w-6 h-6 bg-white rounded-full absolute shadow-md transition-all ${settings.employer_registration_open ? 'right-1' : 'left-1'}`}></div>
+               </button>
              </div>
           </Card>
         )}

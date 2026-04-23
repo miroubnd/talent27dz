@@ -49,8 +49,25 @@ const ApplicantsView = () => {
         .insert([{
           user_id: candidateId,
           message: `Your application for "${job.title}" has been ${newStatus}.`,
-          type: 'application_update'
         }])
+
+      // Fetch candidate email
+      const { data: candidateProfile } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('id', candidateId)
+        .single()
+
+      if (candidateProfile?.email) {
+        // Trigger Email Edge Function
+        await supabase.functions.invoke('send-email', {
+          body: {
+            to: candidateProfile.email,
+            subject: `Update on your application for ${job.title}`,
+            content: `Your application for ${job.title} at our company has been updated to: ${newStatus}.`
+          }
+        })
+      }
 
       setApplicants(prev => prev.map(a => a.id === appId ? { ...a, status: newStatus } : a))
     }

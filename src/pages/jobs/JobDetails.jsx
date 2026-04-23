@@ -65,8 +65,16 @@ const JobDetails = () => {
         .insert([{
           user_id: job.employer_id,
           message: `New application received for "${job.title}" from ${profile.full_name}`,
-          type: 'new_application'
         }])
+
+      // 3. Send Email Notification
+      await supabase.functions.invoke('send-email', {
+        body: {
+          to: job.profiles.contact_email,
+          subject: `New application received for ${job.title}`,
+          content: `${profile.full_name} has applied for your job post ${job.title}.`
+        }
+      })
 
       alert('Application submitted successfully!')
       setShowApplyModal(false)

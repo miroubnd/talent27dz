@@ -91,7 +91,7 @@ const Navbar = () => {
                             <div 
                               key={n.id} 
                               onClick={() => markAsRead(n.id)}
-                              className={`p-4 border-b border-border hover:bg-surface-dark cursor-pointer transition-colors ${!n.read ? 'bg-accent/5' : ''}`}
+                              className={`p-4 border-b border-border hover:bg-surface-dark cursor-pointer transition-colors ${!n.is_read ? 'bg-accent/5' : ''}`}
                             >
                               <p className="text-sm text-primary">{n.message}</p>
                               <p className="text-[10px] text-secondary mt-1">
