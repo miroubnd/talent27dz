@@ -9,6 +9,11 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    let isMounted = true
+    const loadingFallback = setTimeout(() => {
+      if (isMounted) setLoading(false)
+    }, 4000)
+
     // Check active sessions and sets the user
     const getSession = async () => {
       try {
@@ -17,6 +22,7 @@ export const AuthProvider = ({ children }) => {
           console.error('Session error:', error)
           return
         }
+        if (!isMounted) return
         setUser(session?.user ?? null)
         if (session?.user) {
           await fetchProfile(session.user.id)
@@ -24,24 +30,30 @@ export const AuthProvider = ({ children }) => {
       } catch (err) {
         console.error('Unexpected error fetching session:', err)
       } finally {
-        setLoading(false)
+        if (isMounted) setLoading(false)
       }
     }
 
     getSession()
 
     // Listen for changes on auth state (sign in, sign out, etc.)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!isMounted) return
+
       setUser(session?.user ?? null)
       if (session?.user) {
-        await fetchProfile(session.user.id)
+        void fetchProfile(session.user.id)
       } else {
         setProfile(null)
       }
       setLoading(false)
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      isMounted = false
+      clearTimeout(loadingFallback)
+      subscription.unsubscribe()
+    }
   }, [])
 
   const fetchProfile = async (userId) => {

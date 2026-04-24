@@ -95,3 +95,201 @@ CREATE POLICY "Everyone can read platform settings" ON public.platform_settings 
 CREATE POLICY "Admins can update platform settings" ON public.platform_settings FOR UPDATE USING (
   EXISTS(SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
 );
+
+-- ============================
+-- Required Enhancements (Dashboard/Profile)
+-- ============================
+
+-- Add fields used by current UI
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS website TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+
+-- Keep updated_at fresh on profile edits
+CREATE OR REPLACE FUNCTION public.set_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS profiles_set_updated_at ON public.profiles;
+CREATE TRIGGER profiles_set_updated_at
+BEFORE UPDATE ON public.profiles
+FOR EACH ROW
+EXECUTE FUNCTION public.set_updated_at();
+
+-- Backfill profile emails from auth.users where possible
+UPDATE public.profiles p
+SET email = u.email
+FROM auth.users u
+WHERE p.id = u.id
+  AND (p.email IS NULL OR p.email = '');
+
+-- Ensure applications status updates are allowed for employers of related jobs
+DROP POLICY IF EXISTS "Employers update applications for own jobs" ON public.applications;
+CREATE POLICY "Employers update applications for own jobs"
+ON public.applications
+FOR UPDATE
+USING (
+  EXISTS (
+    SELECT 1
+    FROM public.jobs j
+    WHERE j.id = applications.job_id
+      AND j.employer_id = auth.uid()
+  )
+);
+
+-- Helpful indexes for dashboard performance
+CREATE INDEX IF NOT EXISTS idx_jobs_employer_id ON public.jobs(employer_id);
+CREATE INDEX IF NOT EXISTS idx_applications_job_id ON public.applications(job_id);
+CREATE INDEX IF NOT EXISTS idx_applications_candidate_id ON public.applications(candidate_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON public.notifications(user_id);
+
+-- ============================
+-- Storage Buckets & Policies
+-- ============================
+
+-- Buckets required by the app: avatars, cvs, logos
+INSERT INTO storage.buckets (id, name, public)
+VALUES
+  ('avatars', 'avatars', true),
+  ('cvs', 'cvs', false),
+  ('logos', 'logos', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Avatars: users can upload/update/delete their own files under "<uid>-..."
+DROP POLICY IF EXISTS "Avatar files readable by everyone" ON storage.objects;
+CREATE POLICY "Avatar files readable by everyone"
+ON storage.objects
+FOR SELECT
+USING (bucket_id = 'avatars');
+
+DROP POLICY IF EXISTS "Users upload own avatars" ON storage.objects;
+CREATE POLICY "Users upload own avatars"
+ON storage.objects
+FOR INSERT
+WITH CHECK (
+  bucket_id = 'avatars'
+  AND auth.role() = 'authenticated'
+  AND (storage.filename(name) LIKE auth.uid()::text || '-%')
+);
+
+DROP POLICY IF EXISTS "Users update own avatars" ON storage.objects;
+CREATE POLICY "Users update own avatars"
+ON storage.objects
+FOR UPDATE
+USING (
+  bucket_id = 'avatars'
+  AND auth.role() = 'authenticated'
+  AND (storage.filename(name) LIKE auth.uid()::text || '-%')
+);
+
+DROP POLICY IF EXISTS "Users delete own avatars" ON storage.objects;
+CREATE POLICY "Users delete own avatars"
+ON storage.objects
+FOR DELETE
+USING (
+  bucket_id = 'avatars'
+  AND auth.role() = 'authenticated'
+  AND (storage.filename(name) LIKE auth.uid()::text || '-%')
+);
+
+-- Logos: employers can upload/update/delete their own files under "company-<uid>-..."
+DROP POLICY IF EXISTS "Logos readable by everyone" ON storage.objects;
+CREATE POLICY "Logos readable by everyone"
+ON storage.objects
+FOR SELECT
+USING (bucket_id = 'logos');
+
+DROP POLICY IF EXISTS "Employers upload own logos" ON storage.objects;
+CREATE POLICY "Employers upload own logos"
+ON storage.objects
+FOR INSERT
+WITH CHECK (
+  bucket_id = 'logos'
+  AND auth.role() = 'authenticated'
+  AND (
+    storage.filename(name) LIKE 'company-' || auth.uid()::text || '-%'
+    OR storage.filename(name) LIKE auth.uid()::text || '-%'
+  )
+);
+
+DROP POLICY IF EXISTS "Employers update own logos" ON storage.objects;
+CREATE POLICY "Employers update own logos"
+ON storage.objects
+FOR UPDATE
+USING (
+  bucket_id = 'logos'
+  AND auth.role() = 'authenticated'
+  AND (
+    storage.filename(name) LIKE 'company-' || auth.uid()::text || '-%'
+    OR storage.filename(name) LIKE auth.uid()::text || '-%'
+  )
+);
+
+DROP POLICY IF EXISTS "Employers delete own logos" ON storage.objects;
+CREATE POLICY "Employers delete own logos"
+ON storage.objects
+FOR DELETE
+USING (
+  bucket_id = 'logos'
+  AND auth.role() = 'authenticated'
+  AND (
+    storage.filename(name) LIKE 'company-' || auth.uid()::text || '-%'
+    OR storage.filename(name) LIKE auth.uid()::text || '-%'
+  )
+);
+
+-- CVs: private bucket, only owner (candidate) and related employers can read.
+DROP POLICY IF EXISTS "Candidates upload own CVs" ON storage.objects;
+CREATE POLICY "Candidates upload own CVs"
+ON storage.objects
+FOR INSERT
+WITH CHECK (
+  bucket_id = 'cvs'
+  AND auth.role() = 'authenticated'
+  AND (storage.filename(name) LIKE auth.uid()::text || '-%')
+);
+
+DROP POLICY IF EXISTS "Candidates update own CVs" ON storage.objects;
+CREATE POLICY "Candidates update own CVs"
+ON storage.objects
+FOR UPDATE
+USING (
+  bucket_id = 'cvs'
+  AND auth.role() = 'authenticated'
+  AND (storage.filename(name) LIKE auth.uid()::text || '-%')
+);
+
+DROP POLICY IF EXISTS "Candidates delete own CVs" ON storage.objects;
+CREATE POLICY "Candidates delete own CVs"
+ON storage.objects
+FOR DELETE
+USING (
+  bucket_id = 'cvs'
+  AND auth.role() = 'authenticated'
+  AND (storage.filename(name) LIKE auth.uid()::text || '-%')
+);
+
+DROP POLICY IF EXISTS "Candidate and related employers can read CVs" ON storage.objects;
+CREATE POLICY "Candidate and related employers can read CVs"
+ON storage.objects
+FOR SELECT
+USING (
+  bucket_id = 'cvs'
+  AND (
+    -- Candidate owner path
+    (auth.role() = 'authenticated' AND storage.filename(name) LIKE auth.uid()::text || '-%')
+    OR
+    -- Employers with applications linked to their jobs
+    EXISTS (
+      SELECT 1
+      FROM public.applications a
+      JOIN public.jobs j ON j.id = a.job_id
+      WHERE j.employer_id = auth.uid()
+        AND a.cv_url = storage.filename(name)
+    )
+  )
+);

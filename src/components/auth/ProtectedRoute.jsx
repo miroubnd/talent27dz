@@ -24,7 +24,7 @@ export const RoleRoute = ({ children, allowedRoles }) => {
     const dashboardMap = {
       candidate: '/dashboard/candidate',
       employer: '/dashboard/employer',
-      admin: '/dashboard/admin'
+      admin: '/dashboard/admin/pending-jobs',
     }
     return <Navigate to={dashboardMap[profile?.role] || '/'} replace />
   }

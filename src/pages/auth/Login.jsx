@@ -36,7 +36,7 @@ const Login = () => {
           const roleMap = {
             candidate: '/dashboard/candidate',
             employer: '/dashboard/employer',
-            admin: '/dashboard/admin'
+            admin: '/dashboard/admin/pending-jobs',
           }
           dashboardPath = roleMap[profile.role] || '/'
         }

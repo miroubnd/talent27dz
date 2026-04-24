@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Navbar } from '../../components/layout'
 import { Card, Badge, Button } from '../../components/ui'
-import { Users, Briefcase, Check, X, Shield, Search, Settings } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Users, Briefcase, Check, X, Shield, Search, Settings, ExternalLink } from 'lucide-react'
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('pending_jobs')
@@ -128,6 +129,15 @@ const AdminDashboard = () => {
 
         {activeTab === 'pending_jobs' && (
           <div className="space-y-6">
+             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-white px-4 py-3">
+               <p className="text-sm text-secondary">Use the dedicated workspace for a larger review layout.</p>
+               <Link
+                 to="/dashboard/admin/pending-jobs"
+                 className="inline-flex items-center text-sm font-bold text-accent hover:underline"
+               >
+                 Open pending jobs page <ExternalLink size={14} className="ml-1" />
+               </Link>
+             </div>
              {loading ? (
                 <div className="h-64 bg-white/50 animate-pulse rounded-xl border border-border"></div>
              ) : pendingJobs.length > 0 ? (

@@ -2,9 +2,11 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Navbar } from '../components/layout'
 import { Button, Card } from '../components/ui'
 import { CheckCircle2, TrendingUp, Users, ShieldCheck, ArrowRight, Zap, Globe, Award } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
 
 const Home = () => {
   const navigate = useNavigate()
+  const { user } = useAuth()
 
   return (
     <div className="min-h-screen bg-surface-dark selection:bg-accent/30">
@@ -24,14 +26,16 @@ const Home = () => {
           <p className="max-w-2xl mx-auto text-xl text-secondary mb-12">
             TalentDZ is the premium marketplace for specialized professionals and visionary employers looking to build the future of Algeria.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Button size="lg" className="w-full sm:w-auto px-10 h-14 text-lg shadow-xl" onClick={() => navigate('/jobs')}>
-              Find Your Next Job <ArrowRight className="ml-2 w-5 h-5" />
-            </Button>
-            <Button variant="secondary" size="lg" className="w-full sm:w-auto px-10 h-14 text-lg" onClick={() => navigate('/register')}>
-              Post a Job Opening
-            </Button>
-          </div>
+          {!user && (
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Button size="lg" className="w-full sm:w-auto px-10 h-14 text-lg shadow-xl" onClick={() => navigate('/jobs')}>
+                Find Your Next Job <ArrowRight className="ml-2 w-5 h-5" />
+              </Button>
+              <Button variant="secondary" size="lg" className="w-full sm:w-auto px-10 h-14 text-lg" onClick={() => navigate('/register')}>
+                Post a Job Opening
+              </Button>
+            </div>
+          )}
 
           <div className="mt-20 grid grid-cols-2 lg:grid-cols-4 gap-8 max-w-4xl mx-auto">
              <div className="text-center">

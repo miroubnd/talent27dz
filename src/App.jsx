@@ -8,13 +8,13 @@ import Login from './pages/auth/Login'
 import Register from './pages/auth/Register'
 
 // Job Market Pages
-import JobMarketplace from './pages/jobs/JobMarketplace'
 import JobDetails from './pages/jobs/JobDetails'
 
 // Dashboard Pages
 import CandidateDashboard from './pages/dashboard/CandidateDashboard'
 import EmployerDashboard from './pages/dashboard/EmployerDashboard'
 import AdminDashboard from './pages/dashboard/AdminDashboard'
+import AdminPendingJobs from './pages/dashboard/AdminPendingJobs'
 import ApplicantsView from './pages/dashboard/ApplicantsView'
 import PostJob from './pages/dashboard/PostJob'
 
@@ -29,15 +29,19 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             
-            {/* Job Marketplace (Authenticated) */}
+            {/* Job Marketplace (Candidate only) */}
             <Route path="/jobs" element={
               <ProtectedRoute>
-                <JobMarketplace />
+                <RoleRoute allowedRoles={['candidate']}>
+                  <Navigate to="/dashboard/candidate" replace />
+                </RoleRoute>
               </ProtectedRoute>
             } />
             <Route path="/jobs/:id" element={
               <ProtectedRoute>
-                <JobDetails />
+                <RoleRoute allowedRoles={['candidate']}>
+                  <JobDetails />
+                </RoleRoute>
               </ProtectedRoute>
             } />
 
@@ -65,10 +69,20 @@ function App() {
                 </RoleRoute>
               </ProtectedRoute>
             } />
-            <Route path="/jobs/new" element={
+            <Route path="/post-job" element={
               <ProtectedRoute>
                 <RoleRoute allowedRoles={['employer']}>
                   <PostJob />
+                </RoleRoute>
+              </ProtectedRoute>
+            } />
+            <Route path="/jobs/new" element={<Navigate to="/post-job" replace />} />
+
+            {/* Admin — pending jobs (Super Admin moderation) */}
+            <Route path="/dashboard/admin/pending-jobs" element={
+              <ProtectedRoute>
+                <RoleRoute allowedRoles={['admin']}>
+                  <AdminPendingJobs />
                 </RoleRoute>
               </ProtectedRoute>
             } />

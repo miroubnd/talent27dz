@@ -1,5 +1,7 @@
+/// <reference path="./deno-shims.d.ts" />
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
+// Set in production with: supabase secrets set RESEND_API_KEY=your_key (root .env is not read by Edge Functions)
 const resendApiKey = Deno.env.get('RESEND_API_KEY')
 
 const corsHeaders = {
@@ -51,7 +53,8 @@ serve(async (req) => {
     }
 
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    const message = error instanceof Error ? error.message : String(error)
+    return new Response(JSON.stringify({ error: message }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })

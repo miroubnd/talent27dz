@@ -199,6 +199,13 @@ const EmployerDashboard = () => {
     }
   }, [jobs, applications])
 
+  const statusUi = {
+    pending: 'bg-warning/10 text-warning border-warning/20',
+    approved: 'bg-success/10 text-success border-success/20',
+    rejected: 'bg-error/10 text-error border-error/20',
+    closed: 'bg-muted/20 text-muted border-muted/30',
+  }
+
   return (
     <div className="min-h-screen bg-surface-dark">
       <Navbar />
@@ -342,6 +349,56 @@ const EmployerDashboard = () => {
             <div className="p-12 text-center">
               <p className="text-primary font-semibold">No applicants yet</p>
               <p className="text-secondary text-sm mt-2">Applications will appear here as soon as candidates apply.</p>
+            </div>
+          )}
+        </Card>
+
+        <Card className="mt-8">
+          <div className="p-6 border-b border-border">
+            <h2 className="text-xl font-bold text-primary">Posted Jobs Status</h2>
+            <p className="text-secondary text-sm mt-1">
+              Track every listing lifecycle: pending (waiting for super admin), approved (live), and rejected.
+            </p>
+          </div>
+          {loadingData ? (
+            <div className="space-y-4 p-6">
+              {[1, 2, 3].map((i) => <div key={i} className="h-14 bg-surface-dark animate-pulse rounded-xl border border-border"></div>)}
+            </div>
+          ) : jobs.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-surface-dark border-b border-border">
+                    <th className="px-6 py-4 text-xs font-bold text-primary uppercase">Job Title</th>
+                    <th className="px-6 py-4 text-xs font-bold text-primary uppercase">Created</th>
+                    <th className="px-6 py-4 text-xs font-bold text-primary uppercase">Applicants</th>
+                    <th className="px-6 py-4 text-xs font-bold text-primary uppercase">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {jobs.map((job) => {
+                    const applicantsCount = applications.filter((app) => app.job_id === job.id).length
+                    const normalizedStatus = statusUi[job.status] ? job.status : 'closed'
+                    return (
+                      <tr key={job.id} className="hover:bg-surface-dark/50 transition-colors">
+                        <td className="px-6 py-4 font-medium text-primary">{job.title}</td>
+                        <td className="px-6 py-4 text-secondary text-sm">{new Date(job.created_at).toLocaleDateString()}</td>
+                        <td className="px-6 py-4 text-secondary text-sm">{applicantsCount}</td>
+                        <td className="px-6 py-4">
+                          <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold uppercase ${statusUi[normalizedStatus]}`}>
+                            {job.status}
+                          </span>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="p-12 text-center">
+              <p className="text-primary font-semibold">No posted jobs yet</p>
+              <p className="text-secondary text-sm mt-2">Create your first job post to start tracking its status.</p>
             </div>
           )}
         </Card>

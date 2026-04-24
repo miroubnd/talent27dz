@@ -3,11 +3,12 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { Navbar } from '../../components/layout'
 import { Card, Badge, Button, Input } from '../../components/ui'
-import { Briefcase, Calendar, ExternalLink, User, Tag, Plus, X, Search, MapPin, DollarSign, Filter } from 'lucide-react'
+import { uploadFile } from '../../lib/storage'
+import { Briefcase, Calendar, ExternalLink, User, Tag, Plus, X, Search, MapPin, DollarSign, Filter, Pencil, Save, Loader2, FileText } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 const CandidateDashboard = () => {
-  const { user, profile } = useAuth()
+  const { user, profile, refreshProfile, refreshUser } = useAuth()
   const navigate = useNavigate()
   const [applications, setApplications] = useState([])
   const [jobs, setJobs] = useState([])
@@ -22,6 +23,20 @@ const CandidateDashboard = () => {
   // Filters state
   const [categoryFilter, setCategoryFilter] = useState('')
   const [salaryFilter, setSalaryFilter] = useState('')
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false)
+  const [isSavingProfile, setIsSavingProfile] = useState(false)
+  const [profileMessage, setProfileMessage] = useState('')
+  const [profileError, setProfileError] = useState('')
+  const [avatarPreview, setAvatarPreview] = useState('')
+  const [cvViewUrl, setCvViewUrl] = useState('')
+  const [editForm, setEditForm] = useState({
+    full_name: '',
+    email: '',
+  })
+  const [editFiles, setEditFiles] = useState({
+    avatar: null,
+    cv: null,
+  })
 
   useEffect(() => {
     if (user) {
@@ -32,6 +47,43 @@ const CandidateDashboard = () => {
       }
     }
   }, [user, profile])
+
+  useEffect(() => {
+    setEditForm({
+      full_name: profile?.full_name || '',
+      email: user?.email || '',
+    })
+  }, [profile?.full_name, user?.email])
+
+  useEffect(() => {
+    if (!profile?.avatar_url) {
+      setAvatarPreview('')
+      return
+    }
+    resolveStorageAsset('avatars', profile.avatar_url).then((url) => setAvatarPreview(url || ''))
+  }, [profile?.avatar_url])
+
+  useEffect(() => {
+    if (!profile?.cv_url) {
+      setCvViewUrl('')
+      return
+    }
+    resolveStorageAsset('cvs', profile.cv_url).then((url) => setCvViewUrl(url || ''))
+  }, [profile?.cv_url])
+
+  const resolveStorageAsset = async (bucket, value) => {
+    if (!value) return ''
+    if (value.startsWith('http')) return value
+
+    const { data: signed, error: signedError } = await supabase.storage
+      .from(bucket)
+      .createSignedUrl(value, 3600)
+
+    if (!signedError && signed?.signedUrl) return signed.signedUrl
+
+    const { data } = supabase.storage.from(bucket).getPublicUrl(value)
+    return data?.publicUrl || ''
+  }
 
   const fetchApplications = async () => {
     // RLS ensures the user only sees their own applications
@@ -86,6 +138,92 @@ const CandidateDashboard = () => {
     navigate(`/jobs/${jobId}`)
   }
 
+  const handleEditFormChange = (e) => {
+    setEditForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
+  }
+
+  const handleEditFileChange = (e, type) => {
+    setEditFiles((prev) => ({ ...prev, [type]: e.target.files?.[0] || null }))
+  }
+
+  const openCv = async () => {
+    if (!profile?.cv_url) return
+    const target = cvViewUrl || (await resolveStorageAsset('cvs', profile.cv_url))
+    if (target) {
+      window.open(target, '_blank', 'noopener,noreferrer')
+    }
+  }
+
+  const handleProfileUpdate = async (e) => {
+    e.preventDefault()
+    setIsSavingProfile(true)
+    setProfileMessage('')
+    setProfileError('')
+
+    try {
+      const normalizedName = editForm.full_name.trim()
+      const normalizedEmail = editForm.email.trim()
+      const hasNameChange = normalizedName !== (profile?.full_name || '')
+      const hasEmailChange = normalizedEmail !== (user?.email || '')
+      const hasAvatarChange = Boolean(editFiles.avatar)
+      const hasCvChange = Boolean(editFiles.cv)
+
+      if (!hasNameChange && !hasEmailChange && !hasAvatarChange && !hasCvChange) {
+        setProfileMessage('No changes to save.')
+        setIsEditProfileOpen(false)
+        return
+      }
+
+      let avatarUrl = profile?.avatar_url || ''
+      let cvUrl = profile?.cv_url || ''
+
+      if (editFiles.avatar) {
+        avatarUrl = await uploadFile('avatars', editFiles.avatar, `${user.id}-avatar`)
+      }
+      if (editFiles.cv) {
+        cvUrl = await uploadFile('cvs', editFiles.cv, `${user.id}-cv`)
+      }
+
+      const { error: profileUpdateError } = await supabase
+        .from('profiles')
+        .update({
+          full_name: normalizedName,
+          avatar_url: avatarUrl,
+          cv_url: cvUrl,
+        })
+        .eq('id', user.id)
+
+      if (profileUpdateError) throw profileUpdateError
+
+      if (hasEmailChange) {
+        const { error: emailError } = await supabase.auth.updateUser({
+          email: normalizedEmail,
+        })
+        if (emailError) throw emailError
+      }
+
+      await refreshProfile()
+      await refreshUser()
+
+      if (avatarUrl) {
+        const resolvedAvatar = await resolveStorageAsset('avatars', avatarUrl)
+        setAvatarPreview(resolvedAvatar || avatarUrl)
+      }
+      if (cvUrl) {
+        const resolvedCv = await resolveStorageAsset('cvs', cvUrl)
+        setCvViewUrl(resolvedCv || cvUrl)
+      }
+
+      setEditFiles({ avatar: null, cv: null })
+      setProfileMessage('Profile updated successfully.')
+      setIsEditProfileOpen(false)
+    } catch (err) {
+      setProfileError(err.message || 'Unable to update profile.')
+    } finally {
+      setIsSavingProfile(false)
+    }
+  }
+
   const filteredJobs = jobs.filter(job => {
     const matchCategory = categoryFilter ? (job.sector?.toLowerCase() || '').includes(categoryFilter.toLowerCase()) : true
     const matchSalary = salaryFilter ? (job.salary_range?.toLowerCase() || '').includes(salaryFilter.toLowerCase()) : true
@@ -108,7 +246,7 @@ const CandidateDashboard = () => {
               <div className="text-center mb-6">
                 <div className="relative inline-block">
                   <img 
-                    src={profile?.avatar_url || `https://ui-avatars.com/api/?name=${profile?.full_name}&background=1B2A4A&color=C9A84C`}
+                    src={avatarPreview || `https://ui-avatars.com/api/?name=${profile?.full_name}&background=1B2A4A&color=C9A84C`}
                     className="w-24 h-24 rounded-full border-2 border-accent mx-auto mb-4 object-cover shadow-[0_0_15px_rgba(201,168,76,0.3)]"
                     alt="avatar"
                   />
@@ -123,18 +261,24 @@ const CandidateDashboard = () => {
                   <span className="truncate">{user?.email}</span>
                 </div>
                 {profile?.cv_url && (
-                  <a 
-                    href={profile.cv_url} 
-                    target="_blank" 
-                    rel="noreferrer"
+                  <button
+                    onClick={openCv}
                     className="flex items-center text-sm text-accent font-semibold hover:text-white transition-colors"
                   >
-                    <ExternalLink size={16} className="mr-3" /> View Uploaded CV
-                  </a>
+                    <ExternalLink size={16} className="mr-3" /> View CV
+                  </button>
                 )}
-                <button className="w-full mt-4 py-2 bg-transparent border border-[#253655] text-white rounded-lg hover:bg-[#1B2A4A] transition-colors text-sm font-medium">
-                  Edit Profile
+                <button
+                  onClick={() => {
+                    setProfileMessage('')
+                    setProfileError('')
+                    setIsEditProfileOpen(true)
+                  }}
+                  className="w-full mt-4 py-2 bg-transparent border border-[#253655] text-white rounded-lg hover:bg-[#1B2A4A] transition-colors text-sm font-medium inline-flex items-center justify-center gap-2"
+                >
+                  <Pencil size={14} /> Edit Profile
                 </button>
+                {profileMessage && <p className="text-xs text-green-400">{profileMessage}</p>}
               </div>
             </div>
 
@@ -400,6 +544,76 @@ const CandidateDashboard = () => {
           </div>
         </div>
       </main>
+
+      {isEditProfileOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm px-4 py-6 overflow-y-auto">
+          <div className="max-w-xl mx-auto bg-[#131E33] border border-[#253655] rounded-xl shadow-2xl p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-xl font-bold text-white">Edit Profile</h2>
+              <button
+                onClick={() => setIsEditProfileOpen(false)}
+                className="p-2 text-gray-400 hover:text-white hover:bg-[#1B2A4A] rounded-lg"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {profileError && (
+              <div className="mb-4 p-3 rounded-lg border border-red-500/30 bg-red-500/10 text-sm text-red-300">
+                {profileError}
+              </div>
+            )}
+
+            <form onSubmit={handleProfileUpdate} className="space-y-4">
+              <Input
+                label="Full Name"
+                name="full_name"
+                value={editForm.full_name}
+                onChange={handleEditFormChange}
+                required
+                className="bg-[#0A101D] border-[#253655] text-white"
+              />
+              <Input
+                label="Email Address"
+                name="email"
+                type="email"
+                value={editForm.email}
+                onChange={handleEditFormChange}
+                required
+                className="bg-[#0A101D] border-[#253655] text-white"
+              />
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-semibold text-white/80">Avatar (Upload/Replace)</label>
+                <label className="flex items-center justify-center gap-2 w-full px-4 py-3 border-2 border-dashed border-[#253655] rounded-lg cursor-pointer hover:border-accent hover:bg-[#1B2A4A] transition-colors">
+                  <User size={16} className="text-accent" />
+                  <span className="text-sm text-gray-300">{editFiles.avatar ? editFiles.avatar.name : 'Choose avatar image'}</span>
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => handleEditFileChange(e, 'avatar')} />
+                </label>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-semibold text-white/80">CV / Resume (Upload/Replace)</label>
+                <label className="flex items-center justify-center gap-2 w-full px-4 py-3 border-2 border-dashed border-[#253655] rounded-lg cursor-pointer hover:border-accent hover:bg-[#1B2A4A] transition-colors">
+                  <FileText size={16} className="text-accent" />
+                  <span className="text-sm text-gray-300">{editFiles.cv ? editFiles.cv.name : 'Choose CV file (PDF preferred)'}</span>
+                  <input type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={(e) => handleEditFileChange(e, 'cv')} />
+                </label>
+              </div>
+
+              <div className="pt-2 flex justify-end gap-3">
+                <Button type="button" variant="outline" onClick={() => setIsEditProfileOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isSavingProfile}>
+                  {isSavingProfile ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save size={16} className="mr-2" />}
+                  {isSavingProfile ? 'Saving...' : 'Save Changes'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

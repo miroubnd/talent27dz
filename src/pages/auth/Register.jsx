@@ -98,7 +98,10 @@ const Register = () => {
 
       if (profileError) throw profileError
 
-      navigate(role === 'candidate' ? '/dashboard/candidate' : '/dashboard/employer')
+      navigate(
+        role === 'candidate' ? '/dashboard/candidate' : '/dashboard/employer',
+        { replace: true },
+      )
     } catch (err) {
       setError(err.message)
       setLoading(false)

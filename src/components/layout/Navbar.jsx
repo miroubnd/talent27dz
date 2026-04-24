@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useNotifications } from '../../hooks/useNotifications'
-import { Bell, LogOut, User, Search, Briefcase, PlusCircle, LayoutDashboard, Menu, X } from 'lucide-react'
+import { supabase } from '../../lib/supabase'
+import { Bell, LogOut, User, PlusCircle, LayoutDashboard, Menu, X, ClipboardList } from 'lucide-react'
 import { Button } from '../ui'
 
 const Navbar = () => {
@@ -10,31 +11,67 @@ const Navbar = () => {
   const { notifications, unreadCount, markAsRead } = useNotifications()
   const [showNotifications, setShowNotifications] = useState(false)
   const [showMobileMenu, setShowMobileMenu] = useState(false)
+  const [profileImageUrl, setProfileImageUrl] = useState('')
   const navigate = useNavigate()
   const location = useLocation()
 
   const handleSignOut = async () => {
-    await signOut()
-    navigate('/login')
+    try {
+      await signOut()
+    } catch (error) {
+      console.error('Sign out failed:', error)
+    } finally {
+      setShowMobileMenu(false)
+      navigate('/login', { replace: true })
+    }
   }
 
   const isActive = (path) => location.pathname === path
 
   const navLinks = {
     candidate: [
-      { name: 'Jobs', path: '/jobs', icon: Search },
-      { name: 'My Applications', path: '/dashboard/candidate', icon: LayoutDashboard },
+      { name: 'Dashboard', path: '/dashboard/candidate', icon: LayoutDashboard },
     ],
     employer: [
-      { name: 'Post a Job', path: '/jobs/new', icon: PlusCircle },
-      { name: 'My Job Posts', path: '/dashboard/employer', icon: LayoutDashboard },
+      { name: 'Dashboard', path: '/dashboard/employer', icon: LayoutDashboard },
+      { name: 'Post a Job', path: '/post-job', icon: PlusCircle },
     ],
     admin: [
-      { name: 'Job Moderation', path: '/dashboard/admin', icon: LayoutDashboard },
+      { name: 'Pending jobs', path: '/dashboard/admin/pending-jobs', icon: ClipboardList },
+      { name: 'Admin panel', path: '/dashboard/admin', icon: LayoutDashboard },
     ]
   }
 
   const links = profile?.role ? navLinks[profile.role] || [] : []
+
+  useEffect(() => {
+    const resolveAvatar = async () => {
+      const rawValue = profile?.avatar_url || profile?.logo_url || ''
+      if (!rawValue) {
+        setProfileImageUrl('')
+        return
+      }
+      if (rawValue.startsWith('http')) {
+        setProfileImageUrl(rawValue)
+        return
+      }
+
+      const bucket = profile?.role === 'candidate' ? 'avatars' : 'logos'
+      const { data: signed, error } = await supabase.storage
+        .from(bucket)
+        .createSignedUrl(rawValue, 3600)
+
+      if (!error && signed?.signedUrl) {
+        setProfileImageUrl(signed.signedUrl)
+        return
+      }
+
+      const { data } = supabase.storage.from(bucket).getPublicUrl(rawValue)
+      setProfileImageUrl(data?.publicUrl || '')
+    }
+
+    resolveAvatar()
+  }, [profile?.avatar_url, profile?.logo_url, profile?.role])
 
   return (
     <nav className="bg-white border-b border-border sticky top-0 z-50">
@@ -114,7 +151,7 @@ const Navbar = () => {
                       <p className="text-[10px] text-secondary capitalize">{profile?.role}</p>
                    </div>
                    <img 
-                    src={profile?.avatar_url || profile?.logo_url || `https://ui-avatars.com/api/?name=${profile?.full_name || profile?.company_name}&background=1B2A4A&color=fff`}
+                    src={profileImageUrl || `https://ui-avatars.com/api/?name=${profile?.full_name || profile?.company_name}&background=1B2A4A&color=fff`}
                     className="w-9 h-9 rounded-full border border-border" 
                     alt="avatar"
                    />
