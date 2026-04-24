@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext'
 import { Navbar } from '../../components/layout'
 import { Card, Button, Input } from '../../components/ui'
 import { uploadFile } from '../../lib/storage'
-import { Briefcase, Building2, Globe, Upload, Users } from 'lucide-react'
+import { Briefcase, Building2, Globe, Upload, Users, X } from 'lucide-react'
 
 const EmployerDashboard = () => {
   const { user, profile, refreshProfile } = useAuth()
@@ -13,8 +13,10 @@ const EmployerDashboard = () => {
   const [loadingData, setLoadingData] = useState(true)
   const [savingBranding, setSavingBranding] = useState(false)
   const [postingJob, setPostingJob] = useState(false)
+  const [editingJobId, setEditingJobId] = useState(null)
   const [message, setMessage] = useState('')
   const [messageType, setMessageType] = useState('success')
+  const [viewingCoverLetter, setViewingCoverLetter] = useState(null)
 
   const [brandingForm, setBrandingForm] = useState({
     company_name: '',
@@ -28,8 +30,13 @@ const EmployerDashboard = () => {
   const [jobForm, setJobForm] = useState({
     title: '',
     description: '',
-    skills: '',
+    requirements: '',
     salary_range: '',
+    location: '',
+    job_type: 'full-time',
+    sector: '',
+    deadline: '',
+    skills: '',
   })
 
   useEffect(() => {
@@ -55,7 +62,7 @@ const EmployerDashboard = () => {
 
     const { data: applicationsData } = await supabase
       .from('applications')
-      .select('id, status, cv_url, candidate_id, job_id, jobs!inner(id, title, employer_id), profiles(full_name)')
+      .select('id, status, cv_url, cover_letter, candidate_id, job_id, jobs!inner(id, title, employer_id), profiles(full_name, contact_email)')
       .eq('jobs.employer_id', user.id)
       .order('created_at', { ascending: false })
 
@@ -84,7 +91,11 @@ const EmployerDashboard = () => {
     try {
       let logoUrl = profile?.logo_url || ''
       if (logoFile) {
-        logoUrl = await uploadFile('logos', logoFile, `company-${user.id}`)
+        try {
+          logoUrl = await uploadFile('logos', logoFile, `company-${user.id}`)
+        } catch (storageErr) {
+          throw new Error(`Logo upload failed: ${storageErr.message}`)
+        }
       }
 
       const payload = {
@@ -123,6 +134,22 @@ const EmployerDashboard = () => {
     }
   }
 
+  const handleEditJob = (job) => {
+    setEditingJobId(job.id)
+    setJobForm({
+      title: job.title || '',
+      description: job.description || '',
+      requirements: job.requirements || '',
+      skills: job.skills ? job.skills.join(', ') : '',
+      salary_range: job.salary_range || '',
+      location: job.location || '',
+      job_type: job.job_type || 'full-time',
+      sector: job.sector || '',
+      deadline: job.deadline || '',
+    })
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   const handleJobPost = async (e) => {
     e.preventDefault()
     setPostingJob(true)
@@ -137,22 +164,29 @@ const EmployerDashboard = () => {
         employer_id: user.id,
         title: jobForm.title.trim(),
         description: jobForm.description.trim(),
-        requirements: jobForm.description.trim(),
+        requirements: jobForm.requirements.trim() || jobForm.description.trim(),
         skills: skillsArray,
         salary_range: jobForm.salary_range.trim() || null,
+        location: jobForm.location.trim() || null,
+        job_type: jobForm.job_type,
+        sector: jobForm.sector.trim() || null,
+        deadline: jobForm.deadline || null,
         status: 'pending',
       }
 
-      const { error } = await supabase.from('jobs').insert([payload])
-      if (error) throw error
+      if (editingJobId) {
+        const { error } = await supabase.from('jobs').update(payload).eq('id', editingJobId)
+        if (error) throw error
+        setEditingJobId(null)
+        setJobForm({ title: '', description: '', requirements: '', skills: '', salary_range: '', location: '', job_type: 'full-time', sector: '', deadline: '' })
+        publishMessage('success', 'Job updated successfully and sent for admin approval.')
+      } else {
+        const { error } = await supabase.from('jobs').insert([payload])
+        if (error) throw error
+        setJobForm({ title: '', description: '', requirements: '', skills: '', salary_range: '', location: '', job_type: 'full-time', sector: '', deadline: '' })
+        publishMessage('success', 'Job posted successfully and sent for admin approval.')
+      }
 
-      setJobForm({
-        title: '',
-        description: '',
-        skills: '',
-        salary_range: '',
-      })
-      publishMessage('success', 'Job posted successfully and sent for admin approval.')
       await fetchDashboardData()
     } catch (err) {
       publishMessage('error', err.message || 'Unable to post this job right now.')
@@ -174,19 +208,42 @@ const EmployerDashboard = () => {
 
     setApplications((prev) => prev.map((row) => (row.id === applicationId ? { ...row, status } : row)))
     publishMessage('success', `Application marked as ${status}.`)
+
+    const application = applications.find(app => app.id === applicationId)
+    if (application) {
+      await supabase.from('notifications').insert([{
+        user_id: application.candidate_id,
+        message: `Your application for "${application.jobs?.title}" has been updated to: ${status}.`
+      }])
+      
+      if (application.profiles?.contact_email) {
+        await supabase.functions.invoke('send-email', {
+          body: {
+            to: application.profiles.contact_email,
+            subject: `Application Update: ${application.jobs?.title}`,
+            content: `Your application status for the position of ${application.jobs?.title} has been updated to: ${status}.`
+          }
+        }).catch(err => console.log('Email send error:', err))
+      }
+    }
   }
 
   const handleDownloadCv = async (cvUrl) => {
     if (!cvUrl) return
 
+    let path = cvUrl
     if (cvUrl.startsWith('http')) {
-      window.open(cvUrl, '_blank', 'noopener,noreferrer')
-      return
+      const parts = cvUrl.split('/')
+      path = parts[parts.length - 1]
     }
 
-    const { data, error } = await supabase.storage.from('cvs').createSignedUrl(cvUrl, 300)
+    const { data, error } = await supabase.storage.from('cv_uploads').createSignedUrl(path, 300)
     if (error || !data?.signedUrl) {
-      publishMessage('error', 'Unable to generate CV download link.')
+      if (cvUrl.startsWith('http')) {
+        window.open(cvUrl, '_blank', 'noopener,noreferrer')
+      } else {
+        publishMessage('error', 'Unable to generate CV download link.')
+      }
       return
     }
     window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
@@ -277,9 +334,31 @@ const EmployerDashboard = () => {
           </Card>
 
           <Card className="p-6">
-            <h2 className="text-xl font-bold text-primary mb-4">Post a Job</h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-primary">{editingJobId ? 'Edit Job' : 'Post a Job'}</h2>
+              {editingJobId && (
+                <Button variant="outline" size="sm" onClick={() => { setEditingJobId(null); setJobForm({ title: '', description: '', requirements: '', skills: '', salary_range: '', location: '', job_type: 'full-time', sector: '', deadline: '' }) }}>
+                  Cancel
+                </Button>
+              )}
+            </div>
             <form onSubmit={handleJobPost} className="space-y-4">
               <Input label="Title" name="title" value={jobForm.title} onChange={handleJobChange} required />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input label="Location" name="location" value={jobForm.location} onChange={handleJobChange} required />
+                <Input label="Sector" name="sector" value={jobForm.sector} onChange={handleJobChange} required />
+                <div className="space-y-1.5">
+                  <label className="text-sm font-semibold text-primary/80">Job Type</label>
+                  <select name="job_type" className="input" value={jobForm.job_type} onChange={handleJobChange} required>
+                    <option value="full-time">Full-time</option>
+                    <option value="part-time">Part-time</option>
+                    <option value="remote">Remote</option>
+                    <option value="freelance">Freelance</option>
+                    <option value="internship">Internship</option>
+                  </select>
+                </div>
+                <Input label="Deadline" name="deadline" type="date" value={jobForm.deadline} onChange={handleJobChange} required />
+              </div>
               <div>
                 <label className="text-sm font-semibold text-primary/80">Description</label>
                 <textarea
@@ -290,10 +369,20 @@ const EmployerDashboard = () => {
                   required
                 />
               </div>
+              <div>
+                <label className="text-sm font-semibold text-primary/80">Requirements</label>
+                <textarea
+                  name="requirements"
+                  value={jobForm.requirements}
+                  onChange={handleJobChange}
+                  className="input mt-1 min-h-[120px]"
+                  required
+                />
+              </div>
               <Input label="Skills Required (comma separated)" name="skills" value={jobForm.skills} onChange={handleJobChange} placeholder="React, Node.js, SQL" />
-              <Input label="Salary" name="salary_range" value={jobForm.salary_range} onChange={handleJobChange} placeholder="120k - 180k DZD" />
+              <Input label="Salary Range" name="salary_range" value={jobForm.salary_range} onChange={handleJobChange} placeholder="120k - 180k DZD" />
               <Button type="submit" loading={postingJob} disabled={postingJob}>
-                Add Job Listing
+                {editingJobId ? 'Update Job Listing' : 'Add Job Listing'}
               </Button>
             </form>
           </Card>
@@ -316,6 +405,7 @@ const EmployerDashboard = () => {
                     <th className="px-6 py-4 text-xs font-bold text-primary uppercase">Candidate</th>
                     <th className="px-6 py-4 text-xs font-bold text-primary uppercase">Job Title</th>
                     <th className="px-6 py-4 text-xs font-bold text-primary uppercase">CV</th>
+                    <th className="px-6 py-4 text-xs font-bold text-primary uppercase">Cover Letter</th>
                     <th className="px-6 py-4 text-xs font-bold text-primary uppercase">Status</th>
                   </tr>
                 </thead>
@@ -330,15 +420,44 @@ const EmployerDashboard = () => {
                         </Button>
                       </td>
                       <td className="px-6 py-4">
-                        <select
-                          className="input max-w-[150px]"
-                          value={application.status}
-                          onChange={(e) => handleStatusUpdate(application.id, e.target.value)}
-                        >
-                          <option value="pending">Pending</option>
-                          <option value="accepted">Accept</option>
-                          <option value="rejected">Reject</option>
-                        </select>
+                        {application.cover_letter ? (
+                          <Button variant="outline" size="sm" onClick={() => setViewingCoverLetter(application)}>
+                            View
+                          </Button>
+                        ) : <span className="text-sm text-secondary">None</span>}
+                      </td>
+                      <td className="px-6 py-4">
+                        {application.status === 'pending' ? (
+                          <div className="flex items-center gap-2">
+                            <button 
+                              onClick={() => handleStatusUpdate(application.id, 'accepted')}
+                              className="px-3 py-1.5 bg-green-500/10 hover:bg-green-500/20 text-green-600 font-semibold text-xs rounded-lg transition-colors border border-green-500/20"
+                            >
+                              Accept
+                            </button>
+                            <button 
+                              onClick={() => handleStatusUpdate(application.id, 'rejected')}
+                              className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-600 font-semibold text-xs rounded-lg transition-colors border border-red-500/20"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-3">
+                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${
+                              application.status === 'accepted' ? 'bg-green-500/10 text-green-600 border-green-500/20' : 'bg-red-500/10 text-red-600 border-red-500/20'
+                            }`}>
+                              {application.status.charAt(0).toUpperCase() + application.status.slice(1)}
+                            </span>
+                            <button 
+                              onClick={() => handleStatusUpdate(application.id, 'pending')}
+                              className="text-[10px] text-secondary hover:text-primary transition-colors underline"
+                              title="Revert back to pending"
+                            >
+                              Undo
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -373,6 +492,7 @@ const EmployerDashboard = () => {
                     <th className="px-6 py-4 text-xs font-bold text-primary uppercase">Created</th>
                     <th className="px-6 py-4 text-xs font-bold text-primary uppercase">Applicants</th>
                     <th className="px-6 py-4 text-xs font-bold text-primary uppercase">Status</th>
+                    <th className="px-6 py-4 text-xs font-bold text-primary uppercase">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -388,6 +508,9 @@ const EmployerDashboard = () => {
                           <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold uppercase ${statusUi[normalizedStatus]}`}>
                             {job.status}
                           </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <Button variant="outline" size="sm" onClick={() => handleEditJob(job)}>Edit</Button>
                         </td>
                       </tr>
                     )
@@ -414,6 +537,32 @@ const EmployerDashboard = () => {
           </Card>
         </div>
       </main>
+
+      {/* Cover Letter Modal */}
+      {viewingCoverLetter && (
+        <div className="fixed inset-0 z-50 bg-primary/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[80vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between p-6 border-b border-border">
+              <div>
+                <h3 className="text-xl font-bold text-primary">Cover Letter</h3>
+                <p className="text-sm text-secondary mt-1">From {viewingCoverLetter.profiles?.full_name}</p>
+              </div>
+              <button 
+                onClick={() => setViewingCoverLetter(null)}
+                className="p-2 text-secondary hover:text-primary hover:bg-surface-dark rounded-full transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto whitespace-pre-wrap text-primary leading-relaxed text-sm">
+              {viewingCoverLetter.cover_letter}
+            </div>
+            <div className="p-4 border-t border-border flex justify-end bg-surface-dark rounded-b-xl">
+              <Button onClick={() => setViewingCoverLetter(null)}>Close</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

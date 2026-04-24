@@ -18,6 +18,7 @@ export const useJobs = (filters = {}) => {
 
     if (filters.sector) query = query.eq('sector', filters.sector)
     if (filters.location) query = query.ilike('location', `%${filters.location}%`)
+    if (filters.title) query = query.ilike('title', `%${filters.title}%`)
     if (filters.job_type) query = query.eq('job_type', filters.job_type)
     
     const { data } = await query.order('created_at', { ascending: false })

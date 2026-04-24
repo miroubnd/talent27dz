@@ -13,9 +13,5 @@ export const uploadFile = async (bucket, file, path) => {
     throw uploadError
   }
 
-  const { data } = supabase.storage
-    .from(bucket)
-    .getPublicUrl(filePath)
-
-  return data.publicUrl
+  return filePath
 }

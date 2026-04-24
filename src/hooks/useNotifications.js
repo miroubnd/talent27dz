@@ -56,5 +56,20 @@ export const useNotifications = () => {
     }
   }
 
-  return { notifications, unreadCount, markAsRead }
+  const markAllAsRead = async () => {
+    if (unreadCount === 0) return
+
+    const { error } = await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('user_id', user.id)
+      .eq('is_read', false)
+
+    if (!error) {
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
+      setUnreadCount(0)
+    }
+  }
+
+  return { notifications, unreadCount, markAsRead, markAllAsRead }
 }

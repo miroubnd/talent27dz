@@ -155,7 +155,7 @@ CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON public.notifications(use
 INSERT INTO storage.buckets (id, name, public)
 VALUES
   ('avatars', 'avatars', true),
-  ('cvs', 'cvs', false),
+  ('cv_uploads', 'cv_uploads', false),
   ('logos', 'logos', true)
 ON CONFLICT (id) DO NOTHING;
 
@@ -169,12 +169,8 @@ USING (bucket_id = 'avatars');
 DROP POLICY IF EXISTS "Users upload own avatars" ON storage.objects;
 CREATE POLICY "Users upload own avatars"
 ON storage.objects
-FOR INSERT
-WITH CHECK (
-  bucket_id = 'avatars'
-  AND auth.role() = 'authenticated'
-  AND (storage.filename(name) LIKE auth.uid()::text || '-%')
-);
+FOR INSERT TO authenticated
+WITH CHECK (bucket_id = 'avatars');
 
 DROP POLICY IF EXISTS "Users update own avatars" ON storage.objects;
 CREATE POLICY "Users update own avatars"
@@ -206,15 +202,8 @@ USING (bucket_id = 'logos');
 DROP POLICY IF EXISTS "Employers upload own logos" ON storage.objects;
 CREATE POLICY "Employers upload own logos"
 ON storage.objects
-FOR INSERT
-WITH CHECK (
-  bucket_id = 'logos'
-  AND auth.role() = 'authenticated'
-  AND (
-    storage.filename(name) LIKE 'company-' || auth.uid()::text || '-%'
-    OR storage.filename(name) LIKE auth.uid()::text || '-%'
-  )
-);
+FOR INSERT TO authenticated
+WITH CHECK (bucket_id = 'logos');
 
 DROP POLICY IF EXISTS "Employers update own logos" ON storage.objects;
 CREATE POLICY "Employers update own logos"
@@ -246,19 +235,15 @@ USING (
 DROP POLICY IF EXISTS "Candidates upload own CVs" ON storage.objects;
 CREATE POLICY "Candidates upload own CVs"
 ON storage.objects
-FOR INSERT
-WITH CHECK (
-  bucket_id = 'cvs'
-  AND auth.role() = 'authenticated'
-  AND (storage.filename(name) LIKE auth.uid()::text || '-%')
-);
+FOR INSERT TO authenticated
+WITH CHECK (bucket_id = 'cv_uploads');
 
 DROP POLICY IF EXISTS "Candidates update own CVs" ON storage.objects;
 CREATE POLICY "Candidates update own CVs"
 ON storage.objects
 FOR UPDATE
 USING (
-  bucket_id = 'cvs'
+  bucket_id = 'cv_uploads'
   AND auth.role() = 'authenticated'
   AND (storage.filename(name) LIKE auth.uid()::text || '-%')
 );
@@ -268,7 +253,7 @@ CREATE POLICY "Candidates delete own CVs"
 ON storage.objects
 FOR DELETE
 USING (
-  bucket_id = 'cvs'
+  bucket_id = 'cv_uploads'
   AND auth.role() = 'authenticated'
   AND (storage.filename(name) LIKE auth.uid()::text || '-%')
 );
@@ -278,7 +263,7 @@ CREATE POLICY "Candidate and related employers can read CVs"
 ON storage.objects
 FOR SELECT
 USING (
-  bucket_id = 'cvs'
+  bucket_id = 'cv_uploads'
   AND (
     -- Candidate owner path
     (auth.role() = 'authenticated' AND storage.filename(name) LIKE auth.uid()::text || '-%')

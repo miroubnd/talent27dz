@@ -62,7 +62,7 @@ const Register = () => {
       try {
         if (role === 'candidate') {
           if (files.avatar) avatarUrl = await uploadFile('avatars', files.avatar, userId)
-          if (files.cv) cvUrl = await uploadFile('cvs', files.cv, userId)
+          if (files.cv) cvUrl = await uploadFile('cv_uploads', files.cv, userId)
         } else {
           if (files.logo) logoUrl = await uploadFile('logos', files.logo, userId)
         }

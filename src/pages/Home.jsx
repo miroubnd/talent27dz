@@ -28,7 +28,7 @@ const Home = () => {
           </p>
           {!user && (
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Button size="lg" className="w-full sm:w-auto px-10 h-14 text-lg shadow-xl" onClick={() => navigate('/jobs')}>
+              <Button size="lg" className="w-full sm:w-auto px-10 h-14 text-lg shadow-xl" onClick={() => navigate('/dashboard/candidate')}>
                 Find Your Next Job <ArrowRight className="ml-2 w-5 h-5" />
               </Button>
               <Button variant="secondary" size="lg" className="w-full sm:w-auto px-10 h-14 text-lg" onClick={() => navigate('/register')}>

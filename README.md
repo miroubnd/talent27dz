@@ -9,7 +9,7 @@ The database schema directly maps the primary domain components into a structure
 - **Table A (`profiles`)**: Acts as a comprehensive hub linking Candidates and Employers via Supabase Authentication bounds, persisting individual properties (names, locations), roles, and contact metrics beyond base Auth metadata.
 - **Table B (`jobs`)**: The core artifact representing the "Job Offers" dynamically posted by validated Employers. Includes job descriptions, required sector criteria, and location data.
 - **Table C (`applications`)**: The interconnecting "Candidature" entity directly linking Table A (Candidate profile) to Table B (Job Offer). Designed meticulously with `cv_url`, `cover_letter`, `status`, and `created_at` parameters to streamline tracking workflows.
-- **File Assets**: CV files in PDF format, alongside profile Avatars and company Logos, are stored directly in high-tier Supabase Storage utilizing the `cvs`, `avatars`, and `logos` buckets respectively.
+- **File Assets**: CV files in PDF format, alongside profile Avatars and company Logos, are stored directly in high-tier Supabase Storage utilizing the `cv_uploads`, `avatars`, and `logos` buckets respectively.
 
 ---
 
@@ -23,4 +23,4 @@ When scaling a local physical data center to accommodate spikes in traffic (e.g.
 
 **Structured Data vs Unstructured Data in TalentDZ**
 - **Structured Data**: This refers to rigidly schema-enforced, easily queryable information within the relational database. In TalentDZ, examples include the `jobs` table configurations (e.g., strict enumerations for `job_type`, textual references to `location`, constrained `auth.uid` referencing values in `profiles`), and the binary state of the `is_read` column globally tracking notifications.
-- **Unstructured Data**: This entails raw, schema-less information devoid of inherently parsable querying semantics natively. In TalentDZ, concrete examples include the uploaded high-resolution Candidate Avatars (`.jpg` / `.png`), the unstructured raw text within the optional Candidate Cover Letters, and the dense content encoded securely within the PDF Resumes stored directly inside the `cvs` Storage Bucket.
+- **Unstructured Data**: This entails raw, schema-less information devoid of inherently parsable querying semantics natively. In TalentDZ, concrete examples include the uploaded high-resolution Candidate Avatars (`.jpg` / `.png`), the unstructured raw text within the optional Candidate Cover Letters, and the dense content encoded securely within the PDF Resumes stored directly inside the `cv_uploads` Storage Bucket.

@@ -8,7 +8,7 @@ import { Button } from '../ui'
 
 const Navbar = () => {
   const { user, profile, signOut } = useAuth()
-  const { notifications, unreadCount, markAsRead } = useNotifications()
+  const { notifications, unreadCount, markAllAsRead } = useNotifications()
   const [showNotifications, setShowNotifications] = useState(false)
   const [showMobileMenu, setShowMobileMenu] = useState(false)
   const [profileImageUrl, setProfileImageUrl] = useState('')
@@ -106,7 +106,10 @@ const Navbar = () => {
                 {/* Notifications */}
                 <div className="relative">
                   <button 
-                    onClick={() => setShowNotifications(!showNotifications)}
+                    onClick={() => {
+                      setShowNotifications(!showNotifications);
+                      if (!showNotifications) markAllAsRead();
+                    }}
                     className="p-2 text-secondary hover:text-primary relative hover:bg-surface-dark rounded-full transition-colors"
                   >
                     <Bell className="w-5 h-5" />
@@ -119,16 +122,16 @@ const Navbar = () => {
 
                   {showNotifications && (
                     <div className="absolute right-0 mt-3 w-80 bg-white shadow-xl rounded-xl border border-border overflow-hidden ring-1 ring-black/5 animate-in fade-in slide-in-from-top-2">
-                      <div className="p-4 border-b border-border bg-surface-dark">
+                      <div className="p-4 border-b border-border bg-surface-dark flex justify-between items-center">
                         <h3 className="font-bold text-primary">Notifications</h3>
+                        <button onClick={() => setShowNotifications(false)} className="text-secondary hover:text-primary"><X size={16}/></button>
                       </div>
                       <div className="max-h-96 overflow-y-auto">
                         {notifications.length > 0 ? (
                           notifications.map((n) => (
                             <div 
                               key={n.id} 
-                              onClick={() => markAsRead(n.id)}
-                              className={`p-4 border-b border-border hover:bg-surface-dark cursor-pointer transition-colors ${!n.is_read ? 'bg-accent/5' : ''}`}
+                              className={`p-4 border-b border-border hover:bg-surface-dark transition-colors ${!n.is_read ? 'bg-accent/5' : ''}`}
                             >
                               <p className="text-sm text-primary">{n.message}</p>
                               <p className="text-[10px] text-secondary mt-1">

@@ -15,6 +15,8 @@ const JobDetails = () => {
   const [loading, setLoading] = useState(true)
   const [showApplyModal, setShowApplyModal] = useState(false)
   const [applying, setApplying] = useState(false)
+  const [hasApplied, setHasApplied] = useState(false)
+  const [applicationStatus, setApplicationStatus] = useState(null)
   
   const [applyForm, setApplyForm] = useState({
     cover_letter: '',
@@ -33,6 +35,21 @@ const JobDetails = () => {
       .single()
 
     if (data) setJob(data)
+
+    if (user && profile?.role === 'candidate') {
+      const { data: appData } = await supabase
+        .from('applications')
+        .select('status')
+        .eq('job_id', id)
+        .eq('candidate_id', user.id)
+        .maybeSingle()
+      
+      if (appData) {
+        setHasApplied(true)
+        setApplicationStatus(appData.status)
+      }
+    }
+
     setLoading(false)
   }
 
@@ -43,7 +60,7 @@ const JobDetails = () => {
     try {
       let cvUrl = profile.cv_url
       if (applyForm.cv) {
-        cvUrl = await uploadFile('cvs', applyForm.cv, `${user.id}-app`)
+        cvUrl = await uploadFile('cv_uploads', applyForm.cv, `${user.id}-app`)
       }
 
       // 1. Create Application
@@ -77,6 +94,8 @@ const JobDetails = () => {
       })
 
       alert('Application submitted successfully!')
+      setHasApplied(true)
+      setApplicationStatus('pending')
       setShowApplyModal(false)
     } catch (err) {
       alert(err.message)
@@ -167,10 +186,26 @@ const JobDetails = () => {
               {profile?.role === 'candidate' ? (
                 <div className="space-y-4">
                   <h3 className="font-bold text-primary">Interested in this role?</h3>
-                  <p className="text-sm text-secondary">Make sure your profile is up to date before applying.</p>
-                  <Button className="w-full h-12" onClick={() => setShowApplyModal(true)}>
-                    Apply Now
-                  </Button>
+                  {hasApplied ? (
+                    <div className="space-y-2 p-4 bg-surface-dark border border-border rounded-xl">
+                      <p className="text-sm font-bold text-primary">You've already applied</p>
+                      <p className="text-xs text-secondary mb-2">Your application status is:</p>
+                      <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold uppercase ${
+                        applicationStatus === 'accepted' ? 'bg-success/10 text-success border-success/20' :
+                        applicationStatus === 'rejected' ? 'bg-error/10 text-error border-error/20' :
+                        'bg-warning/10 text-warning border-warning/20'
+                      }`}>
+                        {applicationStatus}
+                      </span>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-sm text-secondary">Make sure your profile is up to date before applying.</p>
+                      <Button className="w-full h-12" onClick={() => setShowApplyModal(true)}>
+                        Apply Now
+                      </Button>
+                    </>
+                  )}
                 </div>
               ) : profile?.role === 'employer' ? (
                 <div className="text-center p-4">
