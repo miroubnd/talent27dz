@@ -16,9 +16,6 @@ const Home = () => {
       <section className="relative overflow-hidden pt-20 pb-24 lg:pt-32 lg:pb-40">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-accent/5 blur-[120px] rounded-full -z-10"></div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <Badge status="active" className="mb-6 px-4 py-1.5 bg-accent/10 text-accent border border-accent/20">
-            #1 Career Platform in Algeria
-          </Badge>
           <h1 className="text-5xl lg:text-7xl font-bold text-primary tracking-tight leading-tight mb-8">
             Connecting Elite Talent with <br className="hidden lg:block" />
             <span className="text-accent underline decoration-4 underline-offset-[12px]">Top Algerian Companies</span>
