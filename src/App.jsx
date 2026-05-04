@@ -1,6 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
-import { ProtectedRoute, RoleRoute } from './components/auth/ProtectedRoute'
+import { ProtectedRoute, RoleRoute, GuestRoute } from './components/auth/ProtectedRoute'
 
 // Public Pages
 import Home from './pages/Home'
@@ -26,8 +26,16 @@ function App() {
           <Routes>
             {/* Public */}
             <Route path="/" element={<Home />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
+            <Route path="/login" element={
+              <GuestRoute>
+                <Login />
+              </GuestRoute>
+            } />
+            <Route path="/register" element={
+              <GuestRoute>
+                <Register />
+              </GuestRoute>
+            } />
             
             {/* Job Marketplace (Candidate only) */}
             <Route path="/jobs" element={

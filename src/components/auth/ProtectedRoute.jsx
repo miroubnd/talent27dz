@@ -31,3 +31,20 @@ export const RoleRoute = ({ children, allowedRoles }) => {
 
   return children
 }
+
+export const GuestRoute = ({ children }) => {
+  const { user, profile, loading } = useAuth()
+
+  if (loading) return null
+
+  if (user) {
+    const dashboardMap = {
+      candidate: '/dashboard/candidate',
+      employer: '/dashboard/employer',
+      admin: '/dashboard/admin/pending-jobs',
+    }
+    return <Navigate to={dashboardMap[profile?.role] || '/'} replace />
+  }
+
+  return children
+}
