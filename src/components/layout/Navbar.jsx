@@ -204,12 +204,23 @@ const Navbar = () => {
             ))}
             {!user && (
               <div className="flex flex-col space-y-2 pt-4 border-t border-border">
-                <Button variant="secondary" onClick={() => navigate('/login')}>Login</Button>
-                <Button onClick={() => navigate('/register')}>Register</Button>
+                <Button variant="secondary" onClick={() => { setShowMobileMenu(false); navigate('/login'); }}>Login</Button>
+                <Button onClick={() => { setShowMobileMenu(false); navigate('/register'); }}>Register</Button>
               </div>
             )}
             {user && (
-              <div className="pt-4 border-t border-border">
+              <div className="pt-4 border-t border-border space-y-4">
+                <div className="flex items-center p-2 bg-surface-dark rounded-lg border border-border">
+                   <img 
+                    src={profileImageUrl || `https://ui-avatars.com/api/?name=${profile?.full_name || profile?.company_name || 'User'}&background=1B2A4A&color=fff`}
+                    className="w-10 h-10 rounded-full border border-border mr-3" 
+                    alt="avatar"
+                   />
+                   <div className="text-left">
+                      <p className="text-sm font-bold text-primary">{profile?.full_name || profile?.company_name || 'Loading profile...'}</p>
+                      <p className="text-[10px] text-secondary capitalize">{profile?.role}</p>
+                   </div>
+                </div>
                 <button
                   onClick={handleSignOut}
                   className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-error/10 text-error font-semibold hover:bg-error/20 transition-colors"
