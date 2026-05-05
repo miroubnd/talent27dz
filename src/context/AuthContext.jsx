@@ -10,62 +10,72 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     let isMounted = true
-    const loadingFallback = setTimeout(() => {
-      if (isMounted) setLoading(false)
-    }, 4000)
 
-    // Check active sessions and sets the user
-    const getSession = async () => {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession()
-        if (error) {
-          console.error('Session error:', error)
-          return
-        }
-        if (!isMounted) return
-        setUser(session?.user ?? null)
-        if (session?.user) {
-          await fetchProfile(session.user.id)
-        }
-      } catch (err) {
-        console.error('Unexpected error fetching session:', err)
-      } finally {
-        if (isMounted) setLoading(false)
+    const fetchProfileData = async (userId) => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single()
+      
+      if (!error && isMounted) {
+        setProfile(data)
       }
+      return data
     }
 
-    getSession()
-
-    // Listen for changes on auth state (sign in, sign out, etc.)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!isMounted) return
-
-      setUser(session?.user ?? null)
-      if (session?.user) {
-        void fetchProfile(session.user.id)
-      } else {
-        setProfile(null)
+    const initializeAuth = async () => {
+      // 1. Get initial session
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (isMounted) {
+        const currentUser = session?.user ?? null
+        setUser(currentUser)
+        
+        if (currentUser) {
+          await fetchProfileData(currentUser.id)
+        }
+        
+        setLoading(false)
       }
-      setLoading(false)
-    })
+
+      // 2. Listen for auth changes
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        async (event, session) => {
+          if (!isMounted) return
+
+          const currentUser = session?.user ?? null
+          setUser(currentUser)
+
+          if (currentUser) {
+            await fetchProfileData(currentUser.id)
+          } else {
+            setProfile(null)
+          }
+
+          setLoading(false)
+        }
+      )
+
+      return subscription
+    }
+
+    const authInitPromise = initializeAuth()
 
     return () => {
       isMounted = false
-      clearTimeout(loadingFallback)
-      subscription.unsubscribe()
+      authInitPromise.then(subscription => subscription?.unsubscribe())
     }
   }, [])
 
+  // Exposed helper so other components can refresh the profile manually
   const fetchProfile = async (userId) => {
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
       .single()
-
-    if (!error) {
-      setProfile(data)
-    }
+    if (!error) setProfile(data)
   }
 
   const refreshProfile = async () => {
