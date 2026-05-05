@@ -16,6 +16,14 @@ The platform enables companies to publish job offers, candidates to apply, and a
 
 ---
 
+## 👨‍💻 Team
+
+- **Ismail Tayeb Abderahim**: Front end + supabase
+- **Bouznad Mohamed Morad**: supabase + deploiement
+- **Mazri Anis**: documentation
+
+---
+
 ## 👥 User Roles
 
 ### 🧑 Job Seeker
