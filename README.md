@@ -112,7 +112,7 @@ https://github.com/miroubnd/talent27dz
 
 ## 🏗️ Project Architecture
 
-```bash id="tdzpro02"
+```
 TalentDZ/
 │
 ├── src/                      # Frontend (React / Next.js)
@@ -121,14 +121,14 @@ TalentDZ/
 │   │   ├── dashboard/        # Candidate / Employer / Admin
 │   │   ├── jobs/             # Job listing & details
 │   │   └── profile/          # User profile
-│
+│   │
 │   ├── components/           # Reusable UI
 │   ├── features/             # Business logic (core)
 │   │   ├── auth/
 │   │   ├── profiles/         # Table A
 │   │   ├── jobs/             # Table B
 │   │   └── applications/     # Table C
-│
+│   │
 │   ├── lib/                  # Supabase client & config
 │   ├── hooks/                # Custom hooks
 │   └── utils/                # Helpers
@@ -138,8 +138,10 @@ TalentDZ/
 │   └── policies/             # Security (RLS)
 │
 ├── public/                   # Static files (avatars, CVs, logos)
+├── vercel.json               # Vercel deployment configuration
 ├── .env.local
 └── README.md
+```
 
 ```
 
