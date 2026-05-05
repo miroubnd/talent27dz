@@ -149,7 +149,7 @@ const Navbar = () => {
             {user ? (
               <div className="flex items-center space-x-4 ml-4 border-l pl-8 border-border">
                 {/* Notifications */}
-                <NotificationDropdown />
+                {profile?.role !== 'admin' && <NotificationDropdown />}
 
                 {/* Profile */}
                 <div className="flex items-center">
@@ -182,7 +182,7 @@ const Navbar = () => {
 
           {/* Mobile menu button */}
           <div className="md:hidden flex items-center space-x-2">
-            {user && <NotificationDropdown />}
+            {user && profile?.role !== 'admin' && <NotificationDropdown />}
             <button 
               onClick={() => setShowMobileMenu(!showMobileMenu)}
               className="p-2 text-secondary hover:text-primary hover:bg-surface-dark rounded-full transition-colors"
