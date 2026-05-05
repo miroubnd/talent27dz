@@ -3,19 +3,17 @@ import { supabase } from '../../lib/supabase'
 import { Navbar } from '../../components/layout'
 import { Card, Badge, Button } from '../../components/ui'
 import { Link } from 'react-router-dom'
-import { Users, Briefcase, Check, X, Shield, Search, Settings, ExternalLink } from 'lucide-react'
+import { Users, Briefcase, Check, X, Shield, Search, ExternalLink } from 'lucide-react'
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('pending_jobs')
   const [pendingJobs, setPendingJobs] = useState([])
   const [allUsers, setAllUsers] = useState([])
-  const [settings, setSettings] = useState({ employer_registration_open: true })
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     fetchPendingJobs()
     fetchUsers()
-    fetchSettings()
   }, [])
 
   const fetchPendingJobs = async () => {
@@ -36,26 +34,7 @@ const AdminDashboard = () => {
     setLoading(false)
   }
 
-  const fetchSettings = async () => {
-    const { data } = await supabase
-      .from('platform_settings')
-      .select('*')
-      .eq('id', 1)
-      .single()
-    if (data) setSettings(data)
-  }
 
-  const toggleEmployerRegistration = async () => {
-    const newValue = !settings.employer_registration_open
-    const { error } = await supabase
-      .from('platform_settings')
-      .update({ employer_registration_open: newValue })
-      .eq('id', 1)
-    
-    if (!error) {
-      setSettings({ ...settings, employer_registration_open: newValue })
-    }
-  }
 
   const approveJob = async (jobId, employerProfile, status = 'approved') => {
     const { error } = await supabase
@@ -117,12 +96,6 @@ const AdminDashboard = () => {
                 className={`px-4 md:px-6 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'users' ? 'bg-primary text-white shadow-md' : 'text-secondary hover:text-primary'}`}
               >
                 Users ({allUsers.length})
-              </button>
-              <button 
-                onClick={() => setActiveTab('settings')}
-                className={`px-4 md:px-6 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'settings' ? 'bg-primary text-white shadow-md' : 'text-secondary hover:text-primary'}`}
-              >
-                Settings
               </button>
            </div>
         </header>
@@ -191,7 +164,6 @@ const AdminDashboard = () => {
                          <th className="px-6 py-4 text-xs font-bold text-primary uppercase">Name / Company</th>
                          <th className="px-6 py-4 text-xs font-bold text-primary uppercase">Role</th>
                          <th className="px-6 py-4 text-xs font-bold text-primary uppercase">Join Date</th>
-                         <th className="px-6 py-4 text-xs font-bold text-primary uppercase text-right">Actions</th>
                       </tr>
                    </thead>
                    <tbody className="divide-y divide-border">
@@ -206,9 +178,6 @@ const AdminDashboard = () => {
                            <td className="px-6 py-6 text-sm text-secondary">
                               {new Date(user.created_at).toLocaleDateString()}
                            </td>
-                           <td className="px-6 py-6 text-right">
-                              <Button variant="outline" size="sm">Manage</Button>
-                           </td>
                         </tr>
                       ))}
                    </tbody>
@@ -217,26 +186,7 @@ const AdminDashboard = () => {
           </Card>
         )}
 
-        {activeTab === 'settings' && (
-          <Card className="p-8 max-w-2xl">
-             <h2 className="text-2xl font-bold text-primary flex items-center mb-6">
-               <Settings className="mr-3 text-accent" /> Platform Settings
-             </h2>
-             
-             <div className="flex items-center justify-between p-4 border border-border rounded-xl">
-               <div>
-                 <h3 className="font-bold text-primary text-lg">Allow Employer Registrations</h3>
-                 <p className="text-sm text-secondary">When off, new employers cannot join the platform.</p>
-               </div>
-               <button 
-                 onClick={toggleEmployerRegistration}
-                 className={`w-14 h-8 rounded-full transition-colors flex items-center relative ${settings.employer_registration_open ? 'bg-success' : 'bg-muted'}`}
-               >
-                  <div className={`w-6 h-6 bg-white rounded-full absolute shadow-md transition-all ${settings.employer_registration_open ? 'right-1' : 'left-1'}`}></div>
-               </button>
-             </div>
-          </Card>
-        )}
+
       </main>
     </div>
   )
