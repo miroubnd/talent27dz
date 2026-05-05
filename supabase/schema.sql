@@ -159,77 +159,53 @@ VALUES
   ('logos', 'logos', true)
 ON CONFLICT (id) DO NOTHING;
 
--- Avatars: users can upload/update/delete their own files under "<uid>-..."
+-- Avatars: users can upload/update/delete their own files
 DROP POLICY IF EXISTS "Avatar files readable by everyone" ON storage.objects;
 CREATE POLICY "Avatar files readable by everyone"
-ON storage.objects
-FOR SELECT
+ON storage.objects FOR SELECT
 USING (bucket_id = 'avatars');
 
 DROP POLICY IF EXISTS "Users upload own avatars" ON storage.objects;
 CREATE POLICY "Users upload own avatars"
-ON storage.objects
-FOR INSERT TO authenticated
+ON storage.objects FOR INSERT
+TO authenticated
 WITH CHECK (bucket_id = 'avatars');
 
 DROP POLICY IF EXISTS "Users update own avatars" ON storage.objects;
 CREATE POLICY "Users update own avatars"
-ON storage.objects
-FOR UPDATE
-USING (
-  bucket_id = 'avatars'
-  AND auth.role() = 'authenticated'
-  AND (storage.filename(name) LIKE auth.uid()::text || '-%')
-);
+ON storage.objects FOR UPDATE
+TO authenticated
+USING (bucket_id = 'avatars');
 
 DROP POLICY IF EXISTS "Users delete own avatars" ON storage.objects;
 CREATE POLICY "Users delete own avatars"
-ON storage.objects
-FOR DELETE
-USING (
-  bucket_id = 'avatars'
-  AND auth.role() = 'authenticated'
-  AND (storage.filename(name) LIKE auth.uid()::text || '-%')
-);
+ON storage.objects FOR DELETE
+TO authenticated
+USING (bucket_id = 'avatars');
 
--- Logos: employers can upload/update/delete their own files under "company-<uid>-..."
+-- Logos: employers can upload/update/delete their own files
 DROP POLICY IF EXISTS "Logos readable by everyone" ON storage.objects;
 CREATE POLICY "Logos readable by everyone"
-ON storage.objects
-FOR SELECT
+ON storage.objects FOR SELECT
 USING (bucket_id = 'logos');
 
 DROP POLICY IF EXISTS "Employers upload own logos" ON storage.objects;
 CREATE POLICY "Employers upload own logos"
-ON storage.objects
-FOR INSERT TO authenticated
+ON storage.objects FOR INSERT
+TO authenticated
 WITH CHECK (bucket_id = 'logos');
 
 DROP POLICY IF EXISTS "Employers update own logos" ON storage.objects;
 CREATE POLICY "Employers update own logos"
-ON storage.objects
-FOR UPDATE
-USING (
-  bucket_id = 'logos'
-  AND auth.role() = 'authenticated'
-  AND (
-    storage.filename(name) LIKE 'company-' || auth.uid()::text || '-%'
-    OR storage.filename(name) LIKE auth.uid()::text || '-%'
-  )
-);
+ON storage.objects FOR UPDATE
+TO authenticated
+USING (bucket_id = 'logos');
 
 DROP POLICY IF EXISTS "Employers delete own logos" ON storage.objects;
 CREATE POLICY "Employers delete own logos"
-ON storage.objects
-FOR DELETE
-USING (
-  bucket_id = 'logos'
-  AND auth.role() = 'authenticated'
-  AND (
-    storage.filename(name) LIKE 'company-' || auth.uid()::text || '-%'
-    OR storage.filename(name) LIKE auth.uid()::text || '-%'
-  )
-);
+ON storage.objects FOR DELETE
+TO authenticated
+USING (bucket_id = 'logos');
 
 -- CVs: private bucket, only owner (candidate) and related employers can read.
 DROP POLICY IF EXISTS "Candidates upload own CVs" ON storage.objects;
