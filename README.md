@@ -186,8 +186,7 @@ npm run dev
 
 ## 🚀 Deployment
 
-* Production repository: (this repo)
-* Vercel deployment repo:
+* Vercel deployment repo(this repo):
   https://github.com/miroubnd/talent27dz
 
 ---
