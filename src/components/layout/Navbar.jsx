@@ -73,6 +73,51 @@ const Navbar = () => {
     resolveAvatar()
   }, [profile?.avatar_url, profile?.logo_url, profile?.role])
 
+  const NotificationDropdown = () => (
+    <div className="relative">
+      <button 
+        onClick={() => {
+          setShowNotifications(!showNotifications);
+          if (!showNotifications) markAllAsRead();
+        }}
+        className="p-2 text-secondary hover:text-primary relative hover:bg-surface-dark rounded-full transition-colors"
+      >
+        <Bell className="w-5 h-5" />
+        {unreadCount > 0 && (
+          <span className="absolute top-1 right-1 bg-accent text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full font-bold">
+            {unreadCount}
+          </span>
+        )}
+      </button>
+
+      {showNotifications && (
+        <div className="absolute right-0 mt-3 w-[calc(100vw-2rem)] sm:w-80 max-w-sm bg-white shadow-xl rounded-xl border border-border overflow-hidden ring-1 ring-black/5 animate-in fade-in slide-in-from-top-2 z-50">
+          <div className="p-4 border-b border-border bg-surface-dark flex justify-between items-center">
+            <h3 className="font-bold text-primary">Notifications</h3>
+            <button onClick={() => setShowNotifications(false)} className="text-secondary hover:text-primary"><X size={16}/></button>
+          </div>
+          <div className="max-h-96 overflow-y-auto">
+            {notifications.length > 0 ? (
+              notifications.map((n) => (
+                <div 
+                  key={n.id} 
+                  className={`p-4 border-b border-border hover:bg-surface-dark transition-colors ${!n.is_read ? 'bg-accent/5' : ''}`}
+                >
+                  <p className="text-sm text-primary">{n.message}</p>
+                  <p className="text-[10px] text-secondary mt-1">
+                    {new Date(n.created_at).toLocaleDateString()}
+                  </p>
+                </div>
+              ))
+            ) : (
+              <div className="p-8 text-center text-secondary text-sm">No notifications</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <nav className="bg-white border-b border-border sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -104,48 +149,7 @@ const Navbar = () => {
             {user ? (
               <div className="flex items-center space-x-4 ml-4 border-l pl-8 border-border">
                 {/* Notifications */}
-                <div className="relative">
-                  <button 
-                    onClick={() => {
-                      setShowNotifications(!showNotifications);
-                      if (!showNotifications) markAllAsRead();
-                    }}
-                    className="p-2 text-secondary hover:text-primary relative hover:bg-surface-dark rounded-full transition-colors"
-                  >
-                    <Bell className="w-5 h-5" />
-                    {unreadCount > 0 && (
-                      <span className="absolute top-1 right-1 bg-accent text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full font-bold">
-                        {unreadCount}
-                      </span>
-                    )}
-                  </button>
-
-                  {showNotifications && (
-                    <div className="absolute right-0 mt-3 w-80 bg-white shadow-xl rounded-xl border border-border overflow-hidden ring-1 ring-black/5 animate-in fade-in slide-in-from-top-2">
-                      <div className="p-4 border-b border-border bg-surface-dark flex justify-between items-center">
-                        <h3 className="font-bold text-primary">Notifications</h3>
-                        <button onClick={() => setShowNotifications(false)} className="text-secondary hover:text-primary"><X size={16}/></button>
-                      </div>
-                      <div className="max-h-96 overflow-y-auto">
-                        {notifications.length > 0 ? (
-                          notifications.map((n) => (
-                            <div 
-                              key={n.id} 
-                              className={`p-4 border-b border-border hover:bg-surface-dark transition-colors ${!n.is_read ? 'bg-accent/5' : ''}`}
-                            >
-                              <p className="text-sm text-primary">{n.message}</p>
-                              <p className="text-[10px] text-secondary mt-1">
-                                {new Date(n.created_at).toLocaleDateString()}
-                              </p>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="p-8 text-center text-secondary text-sm">No notifications</div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <NotificationDropdown />
 
                 {/* Profile */}
                 <div className="flex items-center">
@@ -177,10 +181,11 @@ const Navbar = () => {
           </div>
 
           {/* Mobile menu button */}
-          <div className="md:hidden flex items-center">
+          <div className="md:hidden flex items-center space-x-2">
+            {user && <NotificationDropdown />}
             <button 
               onClick={() => setShowMobileMenu(!showMobileMenu)}
-              className="p-2 text-secondary"
+              className="p-2 text-secondary hover:text-primary hover:bg-surface-dark rounded-full transition-colors"
             >
               {showMobileMenu ? <X /> : <Menu />}
             </button>
