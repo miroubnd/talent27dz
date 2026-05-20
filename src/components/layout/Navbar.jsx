@@ -22,7 +22,7 @@ const Navbar = () => {
       console.error('Sign out failed:', error)
     } finally {
       setShowMobileMenu(false)
-      navigate('/login', { replace: true })
+      navigate('/', { replace: true })
     }
   }
 
@@ -146,6 +146,18 @@ const Navbar = () => {
               </Link>
             ))}
 
+            <Link
+              to="/live-demo"
+              className="relative group border border-accent hover:border-accent-light text-accent hover:text-accent-light px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-300 shadow-sm shadow-accent/10 flex items-center justify-center overflow-hidden hover:scale-105"
+              title="This section is strictly dedicated to the SI module teachers at ESTIN Béjaïa for fast evaluation without authentication"
+            >
+              <span className="absolute inset-0 bg-accent/5 animate-pulse rounded-lg"></span>
+              <span className="relative flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-accent animate-ping"></span>
+                Test to Evaluate
+              </span>
+            </Link>
+
             {user ? (
               <div className="flex items-center space-x-4 ml-4 border-l pl-8 border-border">
                 {/* Notifications */}
@@ -207,6 +219,17 @@ const Navbar = () => {
                 {link.name}
               </Link>
             ))}
+
+            <Link
+              to="/live-demo"
+              className="flex items-center justify-center gap-2 py-2.5 rounded-lg border border-accent text-accent font-semibold hover:bg-accent hover:text-white transition-all duration-300"
+              title="This section is strictly dedicated to the SI module teachers at ESTIN Béjaïa for fast evaluation without authentication"
+              onClick={() => setShowMobileMenu(false)}
+            >
+              <span className="w-2 h-2 rounded-full bg-accent animate-ping"></span>
+              Test to Evaluate
+            </Link>
+
             {!user && (
               <div className="flex flex-col space-y-2 pt-4 border-t border-border">
                 <Button variant="secondary" onClick={() => { setShowMobileMenu(false); navigate('/login'); }}>Login</Button>
