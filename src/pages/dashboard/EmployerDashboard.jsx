@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext'
 import { Navbar } from '../../components/layout'
 import { Card, Button, Input } from '../../components/ui'
 import { uploadFile } from '../../lib/storage'
-import { Briefcase, Building2, Globe, Upload, Users, X } from 'lucide-react'
+import { Briefcase, Building2, Globe, Upload, Users, X, Loader2, Save } from 'lucide-react'
 
 const EmployerDashboard = () => {
   const { user, profile, refreshProfile } = useAuth()
@@ -12,6 +12,7 @@ const EmployerDashboard = () => {
   const [applications, setApplications] = useState([])
   const [loadingData, setLoadingData] = useState(true)
   const [savingBranding, setSavingBranding] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
   const [postingJob, setPostingJob] = useState(false)
   const [editingJobId, setEditingJobId] = useState(null)
   const [message, setMessage] = useState('')
@@ -86,15 +87,21 @@ const EmployerDashboard = () => {
 
   const handleBrandingSave = async (e) => {
     e.preventDefault()
+    console.time('Total Company Save Process')
     setSavingBranding(true)
 
     try {
       let logoUrl = profile?.logo_url || ''
       if (logoFile) {
+        setIsUploading(true)
+        console.time('Logo Upload to Supabase Storage')
         try {
           logoUrl = await uploadFile('logos', logoFile, `company-${user.id}`)
         } catch (storageErr) {
           throw new Error(`Logo upload failed: ${storageErr.message}`)
+        } finally {
+          console.timeEnd('Logo Upload to Supabase Storage')
+          setIsUploading(false)
         }
       }
 
@@ -107,6 +114,7 @@ const EmployerDashboard = () => {
         website: brandingForm.website.trim(),
       }
 
+      console.time('Database Company Profile Update')
       let { error } = await supabase
         .from('profiles')
         .update(payload)
@@ -122,15 +130,20 @@ const EmployerDashboard = () => {
       }
 
       if (error) throw error
+      console.timeEnd('Database Company Profile Update')
 
       localStorage.setItem(`company_website_${user.id}`, brandingForm.website.trim())
+      console.time('Auth Context Refresh')
       await refreshProfile()
+      console.timeEnd('Auth Context Refresh')
       setLogoFile(null)
       publishMessage('success', 'Company branding updated successfully.')
     } catch (err) {
       publishMessage('error', err.message || 'Unable to save company branding.')
     } finally {
+      setIsUploading(false)
       setSavingBranding(false)
+      console.timeEnd('Total Company Save Process')
     }
   }
 
@@ -327,8 +340,9 @@ const EmployerDashboard = () => {
                   <input type="file" accept="image/*" className="hidden" onChange={(e) => setLogoFile(e.target.files?.[0] || null)} />
                 </label>
               </div>
-              <Button type="submit" loading={savingBranding} disabled={savingBranding}>
-                Save Company Details
+              <Button type="submit" disabled={savingBranding || isUploading}>
+                {savingBranding || isUploading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save size={16} className="mr-2" />}
+                {isUploading ? 'Uploading...' : savingBranding ? 'Saving...' : 'Save Company Details'}
               </Button>
             </form>
           </Card>

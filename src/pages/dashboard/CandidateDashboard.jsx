@@ -29,10 +29,10 @@ const CandidateDashboard = () => {
   })
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false)
   const [isSavingProfile, setIsSavingProfile] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
   const [profileMessage, setProfileMessage] = useState('')
   const [profileError, setProfileError] = useState('')
   const [avatarPreview, setAvatarPreview] = useState('')
-  const [cvViewUrl, setCvViewUrl] = useState('')
   const [editForm, setEditForm] = useState({
     full_name: '',
     email: '',
@@ -44,10 +44,9 @@ const CandidateDashboard = () => {
 
   useEffect(() => {
     if (user) {
+      console.time('Fetch Initial Data (fetchJobs)')
       fetchJobs()
-      if (profile?.specializations) {
-        setSkills(Array.isArray(profile.specializations) ? profile.specializations : [])
-      }
+      console.timeEnd('Fetch Initial Data (fetchJobs)')
 
       const channel = supabase.channel('applications-changes')
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'applications', filter: `candidate_id=eq.${user.id}` }, payload => {
@@ -59,7 +58,13 @@ const CandidateDashboard = () => {
         supabase.removeChannel(channel)
       }
     }
-  }, [user, profile])
+  }, [user?.id])
+
+  useEffect(() => {
+    if (profile?.specializations) {
+      setSkills(Array.isArray(profile.specializations) ? profile.specializations : [])
+    }
+  }, [profile?.specializations])
 
   useEffect(() => {
     if (user && activeTab === 'applications') {
@@ -82,14 +87,6 @@ const CandidateDashboard = () => {
     resolveStorageAsset('avatars', profile.avatar_url).then((url) => setAvatarPreview(url || ''))
   }, [profile?.avatar_url])
 
-  useEffect(() => {
-    if (!profile?.cv_url) {
-      setCvViewUrl('')
-      return
-    }
-    resolveStorageAsset('cv_uploads', profile.cv_url).then((url) => setCvViewUrl(url || ''))
-  }, [profile?.cv_url])
-
   const resolveStorageAsset = async (bucket, value) => {
     if (!value) return ''
     
@@ -99,6 +96,13 @@ const CandidateDashboard = () => {
       path = parts[parts.length - 1]
     }
 
+    // avatars and logos are public, so getPublicUrl is completely synchronous and has zero network overhead
+    if (bucket === 'avatars' || bucket === 'logos') {
+      const { data } = supabase.storage.from(bucket).getPublicUrl(path)
+      return data?.publicUrl || ''
+    }
+
+    // Only create signed URL for private bucket (cv_uploads)
     const { data: signed, error: signedError } = await supabase.storage
       .from(bucket)
       .createSignedUrl(path, 3600)
@@ -174,16 +178,14 @@ const CandidateDashboard = () => {
 
   const openCv = async () => {
     if (!profile?.cv_url) return
-    if (cvViewUrl) {
-      window.open(cvViewUrl, '_blank', 'noopener,noreferrer')
-      return
-    }
+    console.time('Fetch CV Signed URL')
     let path = profile.cv_url
     if (path.startsWith('http')) {
       const parts = path.split('/')
       path = parts[parts.length - 1]
     }
     const { data } = await supabase.storage.from('cv_uploads').createSignedUrl(path, 3600)
+    console.timeEnd('Fetch CV Signed URL')
     if (data?.signedUrl) {
       window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
     } else if (profile.cv_url.startsWith('http')) {
@@ -193,6 +195,7 @@ const CandidateDashboard = () => {
 
   const handleProfileUpdate = async (e) => {
     e.preventDefault()
+    console.time('Total Profile Save Process')
     setIsSavingProfile(true)
     setProfileMessage('')
     setProfileError('')
@@ -208,19 +211,37 @@ const CandidateDashboard = () => {
       if (!hasNameChange && !hasEmailChange && !hasAvatarChange && !hasCvChange) {
         setProfileMessage('No changes to save.')
         setIsEditProfileOpen(false)
+        console.timeEnd('Total Profile Save Process')
         return
       }
 
       let avatarUrl = profile?.avatar_url || ''
       let cvUrl = profile?.cv_url || ''
 
-      if (editFiles.avatar) {
-        avatarUrl = await uploadFile('avatars', editFiles.avatar, `${user.id}-avatar`)
-      }
-      if (editFiles.cv) {
-        cvUrl = await uploadFile('cv_uploads', editFiles.cv, `${user.id}-cv`)
+      if (editFiles.avatar || editFiles.cv) {
+        setIsUploading(true)
+        console.time('Storage uploads (parallel)')
+        const uploadPromises = []
+        if (editFiles.avatar) {
+          uploadPromises.push(
+            uploadFile('avatars', editFiles.avatar, `${user.id}-avatar`).then(url => {
+              avatarUrl = url
+            })
+          )
+        }
+        if (editFiles.cv) {
+          uploadPromises.push(
+            uploadFile('cv_uploads', editFiles.cv, `${user.id}-cv`).then(url => {
+              cvUrl = url
+            })
+          )
+        }
+        await Promise.all(uploadPromises)
+        console.timeEnd('Storage uploads (parallel)')
+        setIsUploading(false)
       }
 
+      console.time('Database profile update')
       const { error: profileUpdateError } = await supabase
         .from('profiles')
         .update({
@@ -231,24 +252,26 @@ const CandidateDashboard = () => {
         .eq('id', user.id)
 
       if (profileUpdateError) throw profileUpdateError
+      console.timeEnd('Database profile update')
 
       if (hasEmailChange) {
+        console.time('Auth email update')
         const { error: emailError } = await supabase.auth.updateUser({
           email: normalizedEmail,
         })
         if (emailError) throw emailError
+        console.timeEnd('Auth email update')
       }
 
-      await refreshProfile()
-      await refreshUser()
+      console.time('Auth context refresh (parallel)')
+      await Promise.all([refreshProfile(), refreshUser()])
+      console.timeEnd('Auth context refresh (parallel)')
 
       if (avatarUrl) {
+        console.time('Resolve avatar URL')
         const resolvedAvatar = await resolveStorageAsset('avatars', avatarUrl)
         setAvatarPreview(resolvedAvatar || avatarUrl)
-      }
-      if (cvUrl) {
-        const resolvedCv = await resolveStorageAsset('cv_uploads', cvUrl)
-        setCvViewUrl(resolvedCv || cvUrl)
+        console.timeEnd('Resolve avatar URL')
       }
 
       setEditFiles({ avatar: null, cv: null })
@@ -257,7 +280,9 @@ const CandidateDashboard = () => {
     } catch (err) {
       setProfileError(err.message || 'Unable to update profile.')
     } finally {
+      setIsUploading(false)
       setIsSavingProfile(false)
+      console.timeEnd('Total Profile Save Process')
     }
   }
 
@@ -301,14 +326,13 @@ const CandidateDashboard = () => {
                   <span className="truncate">{user?.email}</span>
                 </div>
                 {profile?.cv_url && (
-                  <a
-                    href={cvViewUrl || '#'}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center text-sm text-accent font-semibold hover:text-primary transition-colors"
+                  <button
+                    type="button"
+                    onClick={openCv}
+                    className="flex items-center text-sm text-accent font-semibold hover:text-primary transition-colors bg-transparent border-none p-0 cursor-pointer text-left"
                   >
                     <ExternalLink size={16} className="mr-3" /> View CV
-                  </a>
+                  </button>
                 )}
                 <button
                   onClick={() => {
@@ -686,9 +710,9 @@ const CandidateDashboard = () => {
                 <Button type="button" variant="outline" onClick={() => setIsEditProfileOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled={isSavingProfile}>
-                  {isSavingProfile ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save size={16} className="mr-2" />}
-                  {isSavingProfile ? 'Saving...' : 'Save Changes'}
+                <Button type="submit" disabled={isSavingProfile || isUploading}>
+                  {isSavingProfile || isUploading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save size={16} className="mr-2" />}
+                  {isUploading ? 'Uploading...' : isSavingProfile ? 'Saving...' : 'Save Changes'}
                 </Button>
               </div>
             </form>

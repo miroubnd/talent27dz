@@ -57,15 +57,7 @@ const Navbar = () => {
       }
 
       const bucket = profile?.role === 'candidate' ? 'avatars' : 'logos'
-      const { data: signed, error } = await supabase.storage
-        .from(bucket)
-        .createSignedUrl(rawValue, 3600)
-
-      if (!error && signed?.signedUrl) {
-        setProfileImageUrl(signed.signedUrl)
-        return
-      }
-
+      // avatars and logos are public buckets, so we use getPublicUrl directly which is synchronous and avoids API request roundtrips
       const { data } = supabase.storage.from(bucket).getPublicUrl(rawValue)
       setProfileImageUrl(data?.publicUrl || '')
     }

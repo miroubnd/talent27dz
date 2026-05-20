@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext'
 import { uploadFile } from '../../lib/storage'
 import { Navbar } from '../../components/layout'
 import { Button, Card, Badge, Input } from '../../components/ui'
-import { MapPin, Briefcase, DollarSign, Calendar, Building2, ChevronLeft, Send, FileText } from 'lucide-react'
+import { MapPin, Briefcase, DollarSign, Calendar, Building2, ChevronLeft, Send, FileText, Loader2 } from 'lucide-react'
 
 const JobDetails = () => {
   const { id } = useParams()
@@ -15,6 +15,7 @@ const JobDetails = () => {
   const [loading, setLoading] = useState(true)
   const [showApplyModal, setShowApplyModal] = useState(false)
   const [applying, setApplying] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
   const [hasApplied, setHasApplied] = useState(false)
   const [applicationStatus, setApplicationStatus] = useState(null)
   
@@ -60,7 +61,12 @@ const JobDetails = () => {
     try {
       let cvUrl = profile.cv_url
       if (applyForm.cv) {
-        cvUrl = await uploadFile('cv_uploads', applyForm.cv, `${user.id}-app`)
+        setIsUploading(true)
+        try {
+          cvUrl = await uploadFile('cv_uploads', applyForm.cv, `${user.id}-app`)
+        } finally {
+          setIsUploading(false)
+        }
       }
 
       // 1. Create Application
@@ -100,6 +106,7 @@ const JobDetails = () => {
     } catch (err) {
       alert(err.message)
     } finally {
+      setIsUploading(false)
       setApplying(false)
     }
   }
@@ -274,8 +281,9 @@ const JobDetails = () => {
 
               <div className="flex gap-4 pt-4">
                 <Button variant="outline" className="flex-1" onClick={() => setShowApplyModal(false)}>Cancel</Button>
-                <Button type="submit" className="flex-1" loading={applying}>
-                  <Send size={18} className="mr-2" /> {applying ? 'Sending...' : 'Submit Application'}
+                <Button type="submit" className="flex-1" disabled={applying || isUploading}>
+                  {applying || isUploading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send size={18} className="mr-2" />}
+                  {isUploading ? 'Uploading...' : applying ? 'Sending...' : 'Submit Application'}
                 </Button>
               </div>
             </form>

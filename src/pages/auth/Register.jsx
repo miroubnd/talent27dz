@@ -3,12 +3,13 @@ import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { uploadFile } from '../../lib/storage'
 import { Button, Input, Card } from '../../components/ui'
-import { User, Building2, ChevronLeft, Upload, CheckCircle2 } from 'lucide-react'
+import { User, Building2, ChevronLeft, Upload, CheckCircle2, Loader2 } from 'lucide-react'
 
 const Register = () => {
   const [step, setStep] = useState(1)
   const [role, setRole] = useState('') // candidate or employer
   const [loading, setLoading] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
   const [error, setError] = useState('')
   const navigate = useNavigate()
 
@@ -61,15 +62,23 @@ const Register = () => {
 
       try {
         if (role === 'candidate') {
-          if (files.avatar) avatarUrl = await uploadFile('avatars', files.avatar, userId)
-          if (files.cv) cvUrl = await uploadFile('cv_uploads', files.cv, userId)
+          if (files.avatar || files.cv) {
+            setIsUploading(true)
+            if (files.avatar) avatarUrl = await uploadFile('avatars', files.avatar, userId)
+            if (files.cv) cvUrl = await uploadFile('cv_uploads', files.cv, userId)
+          }
         } else {
-          if (files.logo) logoUrl = await uploadFile('logos', files.logo, userId)
+          if (files.logo) {
+            setIsUploading(true)
+            logoUrl = await uploadFile('logos', files.logo, userId)
+          }
         }
       } catch (uploadErr) {
         console.error('File upload failed during registration:', uploadErr)
         // We continue anyway so the profile is created, preventing a "ghost user"
         // Users can re-upload files from their dashboard.
+      } finally {
+        setIsUploading(false)
       }
 
       // 3. Create Profile
@@ -105,6 +114,7 @@ const Register = () => {
     } catch (err) {
       setError(err.message)
       setLoading(false)
+      setIsUploading(false)
     }
   }
 
@@ -234,8 +244,9 @@ const Register = () => {
               )}
             </div>
 
-            <Button type="submit" className="w-full h-12 text-lg" loading={loading} disabled={loading}>
-              {loading ? 'Creating account...' : 'Complete Registration'}
+            <Button type="submit" className="w-full h-12 text-lg" disabled={loading || isUploading}>
+              {loading || isUploading ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : null}
+              {isUploading ? 'Uploading...' : loading ? 'Creating account...' : 'Complete Registration'}
             </Button>
           </form>
         )}
