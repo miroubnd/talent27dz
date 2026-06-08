@@ -1,8 +1,10 @@
 # 🚀 TalentDZ
 
-TalentDZ is a full-stack job marketplace platform designed to connect job seekers, companies, and administrators in a centralized and efficient recruitment ecosystem.
+TalentDZ is a full-stack job marketplace that connects job seekers, companies, and administrators in one centralized recruitment ecosystem.
 
-The platform enables companies to publish job offers, candidates to apply, and administrators to manage the system with full control.
+Companies can publish job offers, candidates can browse and apply, and administrators oversee the platform with full control over users, listings, and moderation.
+
+This project was developed as part of the **SI module coursework (TD)** for **2CP/S2**. Beyond the technical scope, it helped us practice teamwork, working under pressure, and using AI-assisted development (vibe coding) to turn ideas into working software.
 
 ---
 ## 🧭 Theme Mapping
@@ -20,15 +22,6 @@ The theme of this project is an **online recruitment platform (TalentDZ)** that 
 
 - **File (Unstructured Data) → `public/` + Supabase Storage**  
   Includes uploaded files such as CVs (PDF), images, and company logos, which are not stored in relational table format.
-
----
-
-## ⚠️ Repository Information
-
-This repository contains the production-ready version of TalentDZ.
-
-👉 The repository used for Vercel deployment is available here:
-https://github.com/miroubnd/talent27dz
 
 ---
 
