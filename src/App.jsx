@@ -6,7 +6,6 @@ import { ProtectedRoute, RoleRoute, GuestRoute } from './components/auth/Protect
 import Home from './pages/Home'
 import Login from './pages/auth/Login'
 import Register from './pages/auth/Register'
-import LiveDemo from './pages/LiveDemo'
 
 // Job Market Pages
 import JobDetails from './pages/jobs/JobDetails'
@@ -27,7 +26,6 @@ function App() {
           <Routes>
             {/* Public */}
             <Route path="/" element={<Home />} />
-            <Route path="/live-demo" element={<LiveDemo />} />
             <Route path="/login" element={
               <GuestRoute>
                 <Login />

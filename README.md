@@ -23,30 +23,6 @@ The theme of this project is an **online recruitment platform (TalentDZ)** that 
 
 ---
 
-## 🛠️ Academic Evaluation Mode (Frictionless Testing)
-
-### The Challenge
-To simplify the evaluation process and bypass potential access issues associated with manual credential entry or registration during login/sign-up, we have introduced a dedicated evaluation mode. This feature allows evaluating teachers to access pre-seeded profiles instantly, helping them test and evaluate the platform's features without manual registration friction.
-
-### The Architectural Solution: Test to Evaluate
-To facilitate this, we added a highlighted **"Test to Evaluate"** button in the main Navbar. Clicking this button redirects the user to `/live-demo`, an isolated sandbox route that manages authentication programmatically.
-
-Instead of removing the authentication layer—which would bypass PostgreSQL Row Level Security (RLS) policies and violate multi-tenant data isolation—this route automates the process:
-1. Selecting any of the roles triggers `supabase.auth.signInWithPassword()` behind the scenes using pre-seeded test accounts.
-2. The user is securely authenticated and then programmatically navigated to their respective workspace dashboard.
-3. This maintains 100% database security and RLS data integrity while providing an instant, one-click access solution for grading and review.
-
-### Quick Testing Guide
-1. Click the **"Test to Evaluate"** button in the Navbar.
-2. On the evaluation page, select a role card:
-   - **Employer** (Direct routing to `/dashboard/employer`)
-   - **Candidate** (Direct routing to `/dashboard/candidate`)
-   - **Super Admin** (Direct routing to `/dashboard/admin/pending-jobs`)
-3. The platform automatically signs in and loads the dashboard.
-4. To switch roles, click the **Logout** icon in the Navbar to clear the session and return to the home page.
-
----
-
 ## ⚠️ Repository Information
 
 This repository contains the production-ready version of TalentDZ.
